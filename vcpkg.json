@@ -1,6 +1,26 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "dependencies": [],
+  "dependencies": [
+    "argparse",
+    "directx-dxc",
+    "directxmath",
+    "glaze",
+    "imgui",
+    {
+      "name": "sdl2",
+      "features": [
+        "vulkan"
+      ]
+    },
+    "shader-slang",
+    "spdlog",
+    "vk-bootstrap",
+    "vulkan",
+    "vulkan-headers",
+    "vulkan-memory-allocator",
+    "vulkan-memory-allocator-hpp",
+    "vulkan-validationlayers"
+  ],
   "overrides": [],
   "vcpkg-configuration": {
     "overlay-ports": [

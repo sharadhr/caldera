@@ -1,11 +1,9 @@
-#if defined(__cpp_modules) && (__cpp_modules >= 202207L)
 import std;
-#else
-#include <print>
-#endif
+import vulkan_hpp;
+import Caldera;
 
 auto main() -> int
 {
-  std::print("Hello, World!\n");
-  return 0;
+  auto engine = caldera::Engine{1920, 1080, "engine"};
+	engine.run();
 }

@@ -63,7 +63,8 @@
         "CMAKE_CXX_MODULE_STD": true,
         "CMAKE_CXX_STANDARD": "23",
         "CMAKE_CXX_STANDARD_REQUIRED": true,
-        "CMAKE_CXX_EXTENSIONS": false
+        "CMAKE_CXX_EXTENSIONS": false,
+        "CMAKE_MODULE_PATH": "${sourceDir}/tools/cmake/modules;"
       }
     },
     {

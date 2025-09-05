@@ -12,6 +12,8 @@ target_sources(caldera
 		FILES
 			source/Caldera.cppm
 			source/Engine.cppm
+			source/Images.cppm
+			source/Initialisers.cppm
 			source/Types.cppm
 )
 target_link_libraries(caldera PRIVATE

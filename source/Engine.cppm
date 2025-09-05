@@ -9,17 +9,36 @@ module;
 
 export module Caldera.Engine;
 
+import Caldera.Images;
+import Caldera.Initialisers;
+import Caldera.Types;
 import std;
 import vulkan_hpp;
 
 export namespace caldera
 {
-struct Frame
+struct FrameCommand
 {
-	static constexpr auto FRAME_OVERLAP = 2U;
+	static constexpr auto FRAME_OVERLAP = 3U;
+	using TripleBuffered = std::array<FrameCommand, FRAME_OVERLAP>;
+
+	explicit FrameCommand(vk::raii::Device const& logical_device,
+	                      std::uint32_t queue_family_index,
+	                      vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+
+	static auto
+	makeFrameCommands(vk::raii::Device const& device,
+	                  std::uint32_t queue_family_index,
+	                  vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+		-> TripleBuffered;
+
 	vk::raii::CommandPool commandPool_;
 	vk::raii::CommandBuffer mainCommandBuffer_;
+	vk::raii::Semaphore swapchainSemaphore_;
+	vk::raii::Semaphore renderSemaphore_;
+	vk::raii::Fence renderFence_;
 };
+
 struct Engine
 {
 	explicit Engine(std::uint32_t width, std::uint32_t height, std::string_view name);
@@ -30,6 +49,7 @@ struct Engine
 	auto operator=(Engine&& other) noexcept -> Engine& = delete;
 
 	static auto getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&;
+	auto getCurrentFrame() -> FrameCommand&;
 	void draw();
 	void run();
 
@@ -44,10 +64,9 @@ private:
 	auto buildBootstrapSwapchain() const -> vkb::Swapchain;
 	auto makeSwapchainImageViews() -> std::vector<vk::raii::ImageView>;
 
-	auto initCommands() -> void;
 	auto initSyncStructures() -> void;
 
-	std::size_t frame_{};
+	std::size_t frameIndex_{};
 	bool pauseRendering_{};
 	vk::Extent2D extent_;
 	UniqueSDLWindow window_;
@@ -63,66 +82,89 @@ private:
 	vk::raii::Device logicalDevice_;
 	vkb::Swapchain bootstrapSwapchain_;
 	vk::raii::SwapchainKHR swapchain_;
-	vk::Format swapchainImageFormat_;
+	vk::Format swapchainImageFormat_{vk::Format::eB8G8R8A8Unorm};
 	std::vector<vk::Image> swapchainImages_;
 	std::vector<vk::raii::ImageView> swapchainImageViews_;
 	vk::Extent2D swapchainExtent_;
-	// std::array<Frame, Frame::FRAME_OVERLAP> frames_;
-	// vk::raii::Queue graphicsQueue_;
+	std::uint32_t graphicsQueueFamily_;
+	vk::raii::Queue graphicsQueue_;
+	FrameCommand::TripleBuffered frames_;
 };
 
 } // namespace caldera
 
 module :private;
 
-using namespace std::literals;
-
 namespace
 {
-constexpr auto debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT const severity,
-                   vk::DebugUtilsMessageTypeFlagsEXT const type,
-                   vk::DebugUtilsMessengerCallbackDataEXT const* callback_data,
-                   [[maybe_unused]] void* data) -> vk::Bool32
-{
-	static constexpr auto format = "[Vulkan: {}] : {}"sv;
+using namespace std::literals;
 
-	switch (severity) {
-	case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
+constexpr auto ONE_SECOND = 1s;
+constexpr auto NANOSECONDS_IN_ONE_SECOND = std::chrono::nanoseconds{ONE_SECOND};
+constexpr auto debugCallbackRaw =
+	PFN_vkDebugUtilsMessengerCallbackEXT{[](VkDebugUtilsMessageSeverityFlagBitsEXT const severity,
+                                          VkDebugUtilsMessageTypeFlagsEXT const type,
+                                          VkDebugUtilsMessengerCallbackDataEXT const* callback_data,
+                                          [[maybe_unused]] void* data) {
+		static constexpr auto format = "[Vulkan: {}] : {}"sv;
+
+		switch (static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(severity)) {
+		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
 #if defined(DEBUG) || defined(_DEBUG) || !defined(_NDEBUG)
-		SPDLOG_TRACE(format, type., callback_data.pMessage);
+			spdlog::trace(format, to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)), callback_data->pMessage);
 #endif
-		break;
-	case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
+			break;
+		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
 #if defined(DEBUG) || defined(_DEBUG) || !defined(_NDEBUG)
-		SPDLOG_INFO(format, to_string(type), callback_data->pMessage);
+			spdlog::info(format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
+		               callback_data->pMessage);
 #endif
-		break;
-	case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
-		spdlog::warn(format, to_string(type), callback_data->pMessage);
-		break;
-	case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
-		spdlog::error(format, vk::to_string(type), callback_data->pMessage);
-		break;
-	}
+			break;
+		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
+			spdlog::warn(format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
+		               callback_data->pMessage);
+			break;
+		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
+			spdlog::error(format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
+		                callback_data->pMessage);
+			break;
+		default: break;
+		}
 
-	return vk::False;
-}
-
-constexpr PFN_vkDebugUtilsMessengerCallbackEXT debugCallbackRaw = [](VkDebugUtilsMessageSeverityFlagBitsEXT const severity,
-                                                           VkDebugUtilsMessageTypeFlagsEXT const type,
-                                                           VkDebugUtilsMessengerCallbackDataEXT const* callback_data,
-                                                           [[maybe_unused]] void* data) {
-	return debugCallback(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(severity),
-	                     vk::DebugUtilsMessageTypeFlagsEXT(type),
-	                     reinterpret_cast<vk::DebugUtilsMessengerCallbackDataEXT const*>(callback_data), data);
-};
+		return vk::False;
+	}};
 } // namespace
 
 namespace caldera
 {
+FrameCommand::FrameCommand(vk::raii::Device const& logical_device,
+                           std::uint32_t queue_family_index,
+                           vk::CommandPoolCreateFlagBits flags) :
+	commandPool_{(logical_device.createCommandPool({.flags = flags, .queueFamilyIndex = queue_family_index}).value())},
+	mainCommandBuffer_{
+		std::move(logical_device
+                .allocateCommandBuffers(
+									{.commandPool = commandPool_, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1U})
+                .value()
+                .front())},
+	swapchainSemaphore_{(logical_device.createSemaphore({}).value())},
+	renderSemaphore_{(logical_device.createSemaphore({}).value())},
+	renderFence_{(logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value())}
+{}
+
+auto FrameCommand::makeFrameCommands(vk::raii::Device const& device,
+                                     std::uint32_t queue_family_index,
+                                     vk::CommandPoolCreateFlagBits flags) -> TripleBuffered
+{
+	// there's probably a nice template way to produce an array from a range
+	return TripleBuffered{FrameCommand(device, queue_family_index, flags),
+	                      FrameCommand(device, queue_family_index, flags),
+	                      FrameCommand(device, queue_family_index, flags)};
+}
+
 Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const name) :
 	name_{name},
-	extent_{width, height},
+	extent_{.width = width, .height = height},
 	window_{makeWindow()},
 	bootstrapInstance_{buildBootstrapInstance()},
 	instance_{context_, bootstrapInstance_.instance},
@@ -134,12 +176,13 @@ Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const
 	logicalDevice_{physicalDevice_, bootstrapLogicalDevice_.device},
 	bootstrapSwapchain_{buildBootstrapSwapchain()},
 	swapchain_{logicalDevice_, bootstrapSwapchain_.swapchain},
-	swapchainImageFormat_{vk::Format::eB8G8R8A8Unorm},
 	swapchainImages_(swapchain_.getImages()),
 	swapchainImageViews_(makeSwapchainImageViews()),
-	swapchainExtent_{.width = bootstrapSwapchain_.extent.width, .height = bootstrapSwapchain_.extent.height}
+	swapchainExtent_{.width = bootstrapSwapchain_.extent.width, .height = bootstrapSwapchain_.extent.height},
+	graphicsQueueFamily_{bootstrapLogicalDevice_.get_queue_index(vkb::QueueType::graphics).value()},
+	graphicsQueue_{logicalDevice_, bootstrapLogicalDevice_.get_queue(vkb::QueueType::graphics).value()},
+	frames_{FrameCommand::makeFrameCommands(logicalDevice_, graphicsQueueFamily_)}
 {
-	initCommands();
 	initSyncStructures();
 }
 
@@ -149,7 +192,71 @@ auto Engine::getInstance(std::uint32_t width, std::uint32_t height, std::string_
 	return engine;
 }
 
-void Engine::draw() {}
+auto Engine::getCurrentFrame() -> FrameCommand& { return frames_[frameIndex_ % FrameCommand::FRAME_OVERLAP]; }
+
+void Engine::draw()
+{
+	// wait for and reset last frame
+	vkCheck(logicalDevice_.waitForFences(*getCurrentFrame().renderFence_, vk::True, NANOSECONDS_IN_ONE_SECOND.count()));
+	logicalDevice_.resetFences(*getCurrentFrame().renderFence_);
+
+	// request image from swapchain
+	auto [result, swapchain_image_index] =
+		logicalDevice_.acquireNextImage2KHR({.swapchain = *swapchain_,
+	                                       .timeout = NANOSECONDS_IN_ONE_SECOND.count(),
+	                                       .semaphore = *getCurrentFrame().swapchainSemaphore_,
+	                                       .deviceMask = 1U});
+	vkCheck(result);
+	auto const& swapchain_image = swapchainImages_[swapchain_image_index];
+
+	//
+	auto const& command_buffer = getCurrentFrame().mainCommandBuffer_;
+	command_buffer.reset();
+
+	// start recording command buffer
+	command_buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+	// transition from undefined to general
+	util::transitionImage(command_buffer, swapchain_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+
+	// clear-colour from the frame index; flash with 120-frame period
+	auto const flash = std::abs(std::sin(frameIndex_ / 120.F));
+	auto const clear_value = vk::ClearColorValue{std::array{0.F, 0.F, flash, 1.F}};
+	constexpr auto clear_range = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
+	                                                       .levelCount = vk::RemainingMipLevels,
+	                                                       .layerCount = vk::RemainingArrayLayers};
+
+	// clear the image
+	command_buffer.clearColorImage(swapchain_image, vk::ImageLayout::eGeneral, clear_value, clear_range);
+
+	// transition from general to presentable
+	util::transitionImage(command_buffer, swapchain_image, vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
+
+	command_buffer.end();
+
+	auto const command_submit_info = vk::CommandBufferSubmitInfo{.commandBuffer = command_buffer};
+
+	auto const wait_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().swapchainSemaphore_,
+	                                               .value = 1,
+	                                               .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput};
+	auto const signal_info = vk::SemaphoreSubmitInfo{
+		.semaphore = getCurrentFrame().renderSemaphore_, .value = 1, .stageMask = vk::PipelineStageFlagBits2::eAllGraphics};
+
+	auto const submit_info = vk::SubmitInfo2{}
+	                           .setWaitSemaphoreInfos(wait_info)
+	                           .setCommandBufferInfos(command_submit_info)
+	                           .setSignalSemaphoreInfos(signal_info);
+
+	// submit command buffer to queue blocking against render fence
+	graphicsQueue_.submit2(submit_info, getCurrentFrame().renderFence_);
+
+	// present the frame
+	vkCheck(graphicsQueue_.presentKHR(vk::PresentInfoKHR{}
+															.setWaitSemaphores(*getCurrentFrame().renderSemaphore_)
+															.setSwapchains(*swapchain_)
+															.setImageIndices(swapchain_image_index)));
+	++frameIndex_;
+}
 
 void Engine::run()
 {
@@ -176,9 +283,8 @@ void Engine::run()
 
 				std::this_thread::sleep_for(100ms);
 			}
+			draw();
 		}
-
-		draw();
 	}
 }
 
@@ -272,8 +378,6 @@ auto Engine::makeSwapchainImageViews() -> std::vector<vk::raii::ImageView>
 	       | std::views::transform([&](auto&& image_view) { return vk::raii::ImageView{logicalDevice_, image_view}; })
 	       | std::ranges::to<decltype(swapchainImageViews_)>();
 }
-
-auto Engine::initCommands() -> void {}
 
 auto Engine::initSyncStructures() -> void {}
 } // namespace caldera

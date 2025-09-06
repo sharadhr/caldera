@@ -1,17 +1,16 @@
 module;
 
-#include "vulkan/vulkan_raii.hpp"
-
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
-#include <VkBootstrap.h>
 #include <spdlog/spdlog.h>
+#include <VkBootstrap.h>
 
 export module Caldera.Engine;
 
 import Caldera.Images;
 import Caldera.Initialisers;
 import Caldera.Types;
+
 import std;
 import vulkan_hpp;
 
@@ -63,8 +62,6 @@ private:
 	auto makeSurface() -> vk::raii::SurfaceKHR;
 	auto buildBootstrapSwapchain() const -> vkb::Swapchain;
 	auto makeSwapchainImageViews() -> std::vector<vk::raii::ImageView>;
-
-	auto initSyncStructures() -> void;
 
 	std::size_t frameIndex_{};
 	bool pauseRendering_{};
@@ -182,9 +179,7 @@ Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const
 	graphicsQueueFamily_{bootstrapLogicalDevice_.get_queue_index(vkb::QueueType::graphics).value()},
 	graphicsQueue_{logicalDevice_, bootstrapLogicalDevice_.get_queue(vkb::QueueType::graphics).value()},
 	frames_{FrameCommand::makeFrameCommands(logicalDevice_, graphicsQueueFamily_)}
-{
-	initSyncStructures();
-}
+{}
 
 auto Engine::getInstance(std::uint32_t width, std::uint32_t height, std::string_view const name) -> Engine&
 {
@@ -252,13 +247,13 @@ void Engine::draw()
 
 	// present the frame
 	vkCheck(graphicsQueue_.presentKHR(vk::PresentInfoKHR{}
-															.setWaitSemaphores(*getCurrentFrame().renderSemaphore_)
-															.setSwapchains(*swapchain_)
-															.setImageIndices(swapchain_image_index)));
+	                                    .setWaitSemaphores(*getCurrentFrame().renderSemaphore_)
+	                                    .setSwapchains(*swapchain_)
+	                                    .setImageIndices(swapchain_image_index)));
 	++frameIndex_;
 }
 
-void Engine::run()
+auto Engine::run() -> void
 {
 	auto event = SDL_Event{};
 	auto toEnd = bool{};
@@ -275,7 +270,7 @@ void Engine::run()
 			pauseRendering_ = event.type == SDL_WINDOWEVENT and event.window.event == SDL_WINDOWEVENT_MINIMIZED;
 
 			if (event.type == SDL_KEYDOWN) {
-				SPDLOG_INFO("Key pressed: {}", SDL_GetKeyName(event.key.keysym.sym));
+				SPDLOG_INFO("Key pressed: {}"sv, SDL_GetKeyName(event.key.keysym.sym));
 			}
 
 			if (pauseRendering_) {
@@ -283,22 +278,23 @@ void Engine::run()
 
 				std::this_thread::sleep_for(100ms);
 			}
-			draw();
 		}
+		draw();
 	}
+	graphicsQueue_.waitIdle();
 }
 
 auto Engine::makeWindow() const -> UniqueSDLWindow
 {
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-		spdlog::error("Failed to initialise SDL: {}", SDL_GetError());
+		spdlog::error("Failed to initialise SDL: {}"sv, SDL_GetError());
 		std::exit(EXIT_FAILURE);
 	}
 
 	if (auto const window = SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 	                                         extent_.width, extent_.height, SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI);
 	    window == nullptr) {
-		spdlog::error("Failed to create SDL Window: {}", SDL_GetError());
+		spdlog::error("Failed to create SDL Window: {}"sv, SDL_GetError());
 		std::exit(EXIT_FAILURE);
 	} else {
 		return UniqueSDLWindow{window, &SDL_DestroyWindow};
@@ -378,6 +374,4 @@ auto Engine::makeSwapchainImageViews() -> std::vector<vk::raii::ImageView>
 	       | std::views::transform([&](auto&& image_view) { return vk::raii::ImageView{logicalDevice_, image_view}; })
 	       | std::ranges::to<decltype(swapchainImageViews_)>();
 }
-
-auto Engine::initSyncStructures() -> void {}
 } // namespace caldera

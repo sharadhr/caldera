@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 4.0)
 
 project(caldera LANGUAGES CXX)
-
-include("${CMAKE_CURRENT_LIST_DIR}/tools/cmake/scripts/libraries.cmake")
+include(libraries)
 
 add_library(caldera)
-
 target_sources(caldera
 	PUBLIC FILE_SET CXX_MODULES
 		BASE_DIRS source
@@ -17,11 +15,12 @@ target_sources(caldera
 			source/Types.cppm
 )
 target_link_libraries(caldera PRIVATE
+	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
+	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
 	spdlog::spdlog
 	vk-bootstrap::vk-bootstrap
 	VulkanHppModule
-	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
-	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+	VulkanMemoryAllocatorHppModule
 )
 
 add_executable(engine source/main.cpp)

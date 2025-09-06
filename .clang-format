@@ -37,7 +37,7 @@ RequiresClausePosition: WithPreceding
 InsertBraces: true
 PointerAlignment: Left
 QualifierAlignment: Custom
-QualifierOrder: [static, constexpr, inline, volatile, type, const]
+QualifierOrder: [ static, constexpr, inline, volatile, type, const ]
 TabWidth: 2
 UseTab: AlignWithSpaces
 SeparateDefinitionBlocks: Always
@@ -46,4 +46,4 @@ BreakBeforeBinaryOperators: NonAssignment
 ContinuationIndentWidth: 2
 BreakConstructorInitializers: AfterColon
 ConstructorInitializerIndentWidth: 2
-
+SortIncludes: CaseInsensitive

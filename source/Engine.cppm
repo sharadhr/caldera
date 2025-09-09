@@ -246,15 +246,20 @@ auto Engine::getCurrentFrame() -> FrameCommand& { return frames_.at(frameIndex_ 
 
 auto Engine::draw() -> void
 {
+#pragma warning(push)
+#pragma warning(disable : 4365)
+	static constexpr auto nanoseconds_in_a_second = NANOSECONDS_IN_ONE_SECOND.count();
+#pragma warning(pop)
+
 	// wait for and reset last frame
-	checkResult(
-		logicalDevice_.waitForFences(*getCurrentFrame().renderFence_, vk::True, NANOSECONDS_IN_ONE_SECOND.count()));
+	checkResult(logicalDevice_.waitForFences(*getCurrentFrame().renderFence_, vk::True, nanoseconds_in_a_second));
+
 	logicalDevice_.resetFences(*getCurrentFrame().renderFence_);
 
 	// request image from swapchain
 	auto [result, swapchain_image_index] =
 		logicalDevice_.acquireNextImage2KHR({.swapchain = swapchain_,
-	                                       .timeout = NANOSECONDS_IN_ONE_SECOND.count(),
+	                                       .timeout = nanoseconds_in_a_second,
 	                                       .semaphore = *getCurrentFrame().swapchainSemaphore_,
 	                                       .deviceMask = 1U});
 	checkResult(result);
@@ -365,8 +370,12 @@ auto Engine::makeWindow() const -> UniqueSDLWindow
 		std::exit(EXIT_FAILURE);
 	}
 
-	if (auto* const window = SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-	                                          windowExtent_.width, windowExtent_.height, SDL_WINDOW_VULKAN);
+#pragma warning(push)
+#pragma warning(disable : 4365)
+	if (auto* const window =
+	      SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowExtent_.width, // NOLINT(*-narrowing-conversions)
+	                       windowExtent_.height, SDL_WINDOW_VULKAN); // NOLINT(*-narrowing-conversions)
+#pragma warning(pop)
 	    window == nullptr) {
 		spdlog::error("Failed to create SDL Window: {}"sv, SDL_GetError());
 		std::exit(EXIT_FAILURE);

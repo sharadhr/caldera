@@ -47,3 +47,4 @@ ContinuationIndentWidth: 2
 BreakConstructorInitializers: AfterColon
 ConstructorInitializerIndentWidth: 2
 SortIncludes: CaseInsensitive
+AllowAllArgumentsOnNextLine: false

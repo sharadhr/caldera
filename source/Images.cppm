@@ -30,4 +30,32 @@ auto transitionImage(vk::raii::CommandBuffer const& command,
 	auto const dep_info = vk::DependencyInfo{}.setImageMemoryBarriers(image_barrier);
 	command.pipelineBarrier2(dep_info);
 }
+
+auto copyImageToImage(vk::raii::CommandBuffer const& buffer,
+                      vk::Image const& source,
+                      vk::Image const& destination,
+                      vk::Extent2D const& source_extent,
+                      vk::Extent2D destination_extent) -> void
+{
+	constexpr auto sub_resource =
+		vk::ImageSubresourceLayers{.aspectMask = vk::ImageAspectFlagBits::eColor, .layerCount = 1U};
+	auto const blit_region = vk::ImageBlit2{
+		.srcSubresource = sub_resource,
+		.srcOffsets = {{
+			{{},
+	     {.x = static_cast<std::int32_t>(source_extent.width),
+	      .y = static_cast<std::int32_t>(source_extent.height),
+	      .z = 1U}},
+		}},
+		.dstSubresource = sub_resource,
+		.dstOffsets = {{{{},
+	                   {.x = static_cast<std::int32_t>(destination_extent.width),
+	                    .y = static_cast<std::int32_t>(destination_extent.height),
+	                    .z = 1U}}}},
+	};
+
+	auto const blit_info = vk::BlitImageInfo2{.srcImage = source, .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal, .dstImage = destination, .dstImageLayout = vk::ImageLayout::eTransferDstOptimal, .regionCount = 1U, .filter = vk::Filter::eLinear}.setRegions(blit_region);
+
+	buffer.blitImage2(blit_info);
+}
 } // namespace caldera::util

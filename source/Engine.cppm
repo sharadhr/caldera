@@ -12,6 +12,7 @@ import Caldera.Initialisers;
 import Caldera.Types;
 
 import std;
+import vk_mem_alloc_hpp;
 import vulkan_hpp;
 
 export namespace caldera
@@ -26,7 +27,7 @@ struct FrameCommand
 	                      vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
 	static auto
-	makeFrameCommands(vk::raii::Device const& device,
+	makeFrameCommands(vk::raii::Device const& logical_device,
 	                  std::uint32_t queue_family_index,
 	                  vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
 		-> TripleBuffered;
@@ -36,6 +37,28 @@ struct FrameCommand
 	vk::raii::Semaphore swapchainSemaphore_;
 	vk::raii::Semaphore renderSemaphore_;
 	vk::raii::Fence renderFence_;
+};
+
+struct AllocatedImage
+{
+	AllocatedImage(vk::Extent3D const& extent,
+	               vk::Format const& format,
+	               vk::raii::Device const& logical_device,
+	               vma::Allocator const& allocator,
+	               vk::ImageUsageFlags const& image_usage_flags);
+
+	~AllocatedImage();
+
+private:
+	using VMAImageAndMemory =
+		std::unique_ptr<std::pair<vk::Image, vma::Allocation>, decltype(vma::Allocator::destroyImage)>;
+
+public:
+	vk::Extent3D extent_;
+	vk::Format format_;
+	vma::Allocator const& allocator;
+	std::pair<vk::Image, vma::Allocation> imageAndMemory_;
+	vk::raii::ImageView view_{nullptr};
 };
 
 struct Engine
@@ -49,8 +72,9 @@ struct Engine
 
 	static auto getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&;
 	auto getCurrentFrame() -> FrameCommand&;
-	void draw();
-	void run();
+	auto draw() -> void;
+	auto drawBackground(vk::raii::CommandBuffer const& command_buffer) const -> void;
+	auto run() -> void;
 
 private:
 	using UniqueSDLWindow = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>;
@@ -65,7 +89,7 @@ private:
 
 	std::size_t frameIndex_{};
 	bool pauseRendering_{};
-	vk::Extent2D extent_;
+	vk::Extent2D windowExtent_;
 	UniqueSDLWindow window_;
 	vk::raii::Context context_;
 	vkb::Instance bootstrapInstance_;
@@ -86,6 +110,9 @@ private:
 	std::uint32_t graphicsQueueFamily_;
 	vk::raii::Queue graphicsQueue_;
 	FrameCommand::TripleBuffered frames_;
+	vma::Allocator allocator_;
+	AllocatedImage drawImage_;
+	vk::Extent2D drawExtent_;
 };
 
 } // namespace caldera
@@ -97,6 +124,7 @@ namespace
 using namespace std::literals;
 
 constexpr auto ONE_SECOND = 1s;
+constexpr auto HUNDRED_MILLISECONDS = 100ms;
 constexpr auto NANOSECONDS_IN_ONE_SECOND = std::chrono::nanoseconds{ONE_SECOND};
 constexpr auto debugCallbackRaw =
 	PFN_vkDebugUtilsMessengerCallbackEXT{[](VkDebugUtilsMessageSeverityFlagBitsEXT const severity,
@@ -125,7 +153,7 @@ constexpr auto debugCallbackRaw =
 			spdlog::error(format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
 		                callback_data->pMessage);
 			break;
-		default: break;
+		default: std::unreachable();
 		}
 
 		return vk::False;
@@ -149,19 +177,40 @@ FrameCommand::FrameCommand(vk::raii::Device const& logical_device,
 	renderFence_{(logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value())}
 {}
 
-auto FrameCommand::makeFrameCommands(vk::raii::Device const& device,
+auto FrameCommand::makeFrameCommands(vk::raii::Device const& logical_device,
                                      std::uint32_t queue_family_index,
                                      vk::CommandPoolCreateFlagBits flags) -> TripleBuffered
 {
 	// there's probably a nice template way to produce an array from a range
-	return TripleBuffered{FrameCommand(device, queue_family_index, flags),
-	                      FrameCommand(device, queue_family_index, flags),
-	                      FrameCommand(device, queue_family_index, flags)};
+	return TripleBuffered{FrameCommand(logical_device, queue_family_index, flags),
+	                      FrameCommand(logical_device, queue_family_index, flags),
+	                      FrameCommand(logical_device, queue_family_index, flags)};
 }
+
+AllocatedImage::AllocatedImage(vk::Extent3D const& extent,
+                               vk::Format const& format,
+                               vk::raii::Device const& logical_device,
+                               vma::Allocator const& allocator,
+                               vk::ImageUsageFlags const& image_usage_flags) :
+	extent_{extent},
+	format_{format},
+	allocator{allocator},
+	imageAndMemory_{
+		allocator
+			.createImage(init::makeImageCreateInfo(format_, extent_, image_usage_flags),
+                   {.usage = vma::MemoryUsage::eGpuOnly, .requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal})
+			.value},
+	view_{
+		logical_device
+			.createImageView(init::makeImageViewCreateInfo(format_, imageAndMemory_.first, vk::ImageAspectFlagBits::eColor))
+			.value()}
+{}
+
+AllocatedImage::~AllocatedImage() { allocator.destroyImage(imageAndMemory_.first, imageAndMemory_.second); }
 
 Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const name) :
 	name_{name},
-	extent_{.width = width, .height = height},
+	windowExtent_{.width = width, .height = height},
 	window_{makeWindow()},
 	bootstrapInstance_{buildBootstrapInstance()},
 	instance_{context_, bootstrapInstance_.instance},
@@ -178,64 +227,77 @@ Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const
 	swapchainExtent_{.width = bootstrapSwapchain_.extent.width, .height = bootstrapSwapchain_.extent.height},
 	graphicsQueueFamily_{bootstrapLogicalDevice_.get_queue_index(vkb::QueueType::graphics).value()},
 	graphicsQueue_{logicalDevice_, bootstrapLogicalDevice_.get_queue(vkb::QueueType::graphics).value()},
-	frames_{FrameCommand::makeFrameCommands(logicalDevice_, graphicsQueueFamily_)}
+	frames_{FrameCommand::makeFrameCommands(logicalDevice_, graphicsQueueFamily_)},
+	allocator_{vma::createAllocator({.flags = vma::AllocatorCreateFlagBits::eBufferDeviceAddress,
+                                   .physicalDevice = physicalDevice_,
+                                   .device = logicalDevice_,
+                                   .instance = instance_,
+                                   .vulkanApiVersion = vk::ApiVersion13})
+               .value},
+	drawImage_{{windowExtent_.width, windowExtent_.height, 1U},
+             vk::Format::eR16G16B16A16Sfloat,
+             logicalDevice_,
+             allocator_,
+             vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
+               | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment}
 {}
 
-auto Engine::getInstance(std::uint32_t width, std::uint32_t height, std::string_view const name) -> Engine&
-{
-	static auto engine = Engine{width, height, name};
-	return engine;
-}
+auto Engine::getCurrentFrame() -> FrameCommand& { return frames_.at(frameIndex_ % FrameCommand::FRAME_OVERLAP); }
 
-auto Engine::getCurrentFrame() -> FrameCommand& { return frames_[frameIndex_ % FrameCommand::FRAME_OVERLAP]; }
-
-void Engine::draw()
+auto Engine::draw() -> void
 {
 	// wait for and reset last frame
-	vkCheck(logicalDevice_.waitForFences(*getCurrentFrame().renderFence_, vk::True, NANOSECONDS_IN_ONE_SECOND.count()));
+	checkResult(
+		logicalDevice_.waitForFences(*getCurrentFrame().renderFence_, vk::True, NANOSECONDS_IN_ONE_SECOND.count()));
 	logicalDevice_.resetFences(*getCurrentFrame().renderFence_);
 
 	// request image from swapchain
 	auto [result, swapchain_image_index] =
-		logicalDevice_.acquireNextImage2KHR({.swapchain = *swapchain_,
+		logicalDevice_.acquireNextImage2KHR({.swapchain = swapchain_,
 	                                       .timeout = NANOSECONDS_IN_ONE_SECOND.count(),
 	                                       .semaphore = *getCurrentFrame().swapchainSemaphore_,
 	                                       .deviceMask = 1U});
-	vkCheck(result);
+	checkResult(result);
+
+	auto const& draw_image = drawImage_.imageAndMemory_.first;
 	auto const& swapchain_image = swapchainImages_[swapchain_image_index];
 
-	//
 	auto const& command_buffer = getCurrentFrame().mainCommandBuffer_;
 	command_buffer.reset();
 
-	// start recording command buffer
+	drawExtent_ = {.width = drawImage_.extent_.width, .height = drawImage_.extent_.height};
+
+	// *** Start recording into the command buffer
 	command_buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
-	// transition from undefined to general
-	util::transitionImage(command_buffer, swapchain_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+	// transition draw image from undefined to general
+	util::transitionImage(command_buffer, draw_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
 
-	// clear-colour from the frame index; flash with 120-frame period
-	auto const flash = std::abs(std::sin(frameIndex_ / 120.F));
-	auto const clear_value = vk::ClearColorValue{std::array{0.F, 0.F, flash, 1.F}};
-	constexpr auto clear_range = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
-	                                                       .levelCount = vk::RemainingMipLevels,
-	                                                       .layerCount = vk::RemainingArrayLayers};
+	drawBackground(command_buffer);
 
-	// clear the image
-	command_buffer.clearColorImage(swapchain_image, vk::ImageLayout::eGeneral, clear_value, clear_range);
+	// transition swapchain image and draw image
+	util::transitionImage(command_buffer, draw_image, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+	util::transitionImage(command_buffer, swapchain_image, vk::ImageLayout::eUndefined,
+	                      vk::ImageLayout::eTransferDstOptimal);
+
+	// copy the image
+	util::copyImageToImage(command_buffer, draw_image, swapchain_image, drawExtent_, swapchainExtent_);
 
 	// transition from general to presentable
-	util::transitionImage(command_buffer, swapchain_image, vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
+	util::transitionImage(command_buffer, swapchain_image, vk::ImageLayout::eTransferDstOptimal,
+	                      vk::ImageLayout::ePresentSrcKHR);
 
 	command_buffer.end();
 
+	// *** Submit the command buffer ***
 	auto const command_submit_info = vk::CommandBufferSubmitInfo{.commandBuffer = command_buffer};
 
 	auto const wait_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().swapchainSemaphore_,
 	                                               .value = 1,
 	                                               .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput};
-	auto const signal_info = vk::SemaphoreSubmitInfo{
-		.semaphore = getCurrentFrame().renderSemaphore_, .value = 1, .stageMask = vk::PipelineStageFlagBits2::eAllGraphics};
+	auto const signal_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().renderSemaphore_,
+	                                                 .value = 1,
+	                                                 .stageMask = vk::PipelineStageFlagBits2::eAllGraphics};
 
 	auto const submit_info = vk::SubmitInfo2{}
 	                           .setWaitSemaphoreInfos(wait_info)
@@ -246,11 +308,23 @@ void Engine::draw()
 	graphicsQueue_.submit2(submit_info, getCurrentFrame().renderFence_);
 
 	// present the frame
-	vkCheck(graphicsQueue_.presentKHR(vk::PresentInfoKHR{}
-	                                    .setWaitSemaphores(*getCurrentFrame().renderSemaphore_)
-	                                    .setSwapchains(*swapchain_)
-	                                    .setImageIndices(swapchain_image_index)));
+	checkResult(graphicsQueue_.presentKHR(vk::PresentInfoKHR{}
+	                                        .setWaitSemaphores(*getCurrentFrame().renderSemaphore_)
+	                                        .setSwapchains(*swapchain_)
+	                                        .setImageIndices(swapchain_image_index)));
 	++frameIndex_;
+}
+
+auto Engine::drawBackground(vk::raii::CommandBuffer const& command_buffer) const -> void
+{
+	// clear-colour from the frame index; flash with 120-frame period
+	auto const flash = std::abs(std::sin(frameIndex_ / 120.F));
+	auto const clear_value = vk::ClearColorValue{std::array{0.F, 0.F, flash, 1.F}};
+	constexpr auto clear_range = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
+	                                                       .levelCount = vk::RemainingMipLevels,
+	                                                       .layerCount = vk::RemainingArrayLayers};
+	// clear the image
+	command_buffer.clearColorImage(drawImage_.imageAndMemory_.first, vk::ImageLayout::eGeneral, clear_value, clear_range);
 }
 
 auto Engine::run() -> void
@@ -276,7 +350,7 @@ auto Engine::run() -> void
 			if (pauseRendering_) {
 				using namespace std::literals;
 
-				std::this_thread::sleep_for(100ms);
+				// std::this_thread::sleep_for(HUNDRED_MILLISECONDS);
 			}
 		}
 		draw();
@@ -291,8 +365,8 @@ auto Engine::makeWindow() const -> UniqueSDLWindow
 		std::exit(EXIT_FAILURE);
 	}
 
-	if (auto const window = SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-	                                         extent_.width, extent_.height, SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI);
+	if (auto* const window = SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+	                                          windowExtent_.width, windowExtent_.height, SDL_WINDOW_VULKAN);
 	    window == nullptr) {
 		spdlog::error("Failed to create SDL Window: {}"sv, SDL_GetError());
 		std::exit(EXIT_FAILURE);
@@ -357,7 +431,7 @@ auto Engine::buildBootstrapSwapchain() const -> vkb::Swapchain
 	      vkb::SwapchainBuilder{*physicalDevice_, *logicalDevice_, *surface_}
 	        .set_desired_format(surface_format)
 	        .set_desired_present_mode(static_cast<VkPresentModeKHR>(vk::PresentModeKHR::eImmediate))
-	        .set_desired_extent(extent_.width, extent_.height)
+	        .set_desired_extent(windowExtent_.width, windowExtent_.height)
 	        .add_image_usage_flags(static_cast<VkImageUsageFlags>(vk::ImageUsageFlagBits::eTransferDst))
 	        .build();
 	    !maybe_swapchain) {

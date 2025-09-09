@@ -16,10 +16,6 @@ target_compile_definitions(VulkanHppModule PUBLIC
 	VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 )
 
-get_target_property(VMA_HPP_INCLUDE_DIR
-	VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp
-	INTERFACE_INCLUDE_DIRECTORIES
-)
 add_library(VulkanMemoryAllocatorHppModule)
 target_sources(VulkanMemoryAllocatorHppModule PUBLIC
 	FILE_SET CXX_MODULES
@@ -27,7 +23,8 @@ target_sources(VulkanMemoryAllocatorHppModule PUBLIC
 	FILES ${Vulkan_INCLUDE_DIR}/vulkan-memory-allocator-hpp/vk_mem_alloc.cppm
 )
 target_compile_features(VulkanMemoryAllocatorHppModule PUBLIC cxx_std_23)
-target_link_libraries(VulkanMemoryAllocatorHppModule PRIVATE
+target_link_libraries(VulkanMemoryAllocatorHppModule PUBLIC
+	Vulkan::Vulkan
 	VulkanHppModule
 	GPUOpen::VulkanMemoryAllocator
 	VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp

@@ -9,7 +9,7 @@ import vulkan_hpp;
 
 export namespace caldera
 {
-constexpr inline auto vkCheck = [](vk::Result const& result) {
+constexpr inline auto checkResult = [](vk::Result const& result) {
 	if (result != vk::Result::eSuccess) {
 		spdlog::error("Vulkan error: {}", vk::to_string(result));
 	}

@@ -1,11 +1,9 @@
-module;
-
-export module Caldera.Initialisers;
+module Caldera:Initialisers;
 
 import std;
 import vulkan_hpp;
 
-export namespace caldera::init
+namespace caldera::init
 {
 constexpr auto makeImageCreateInfo(vk::Format const& image_format,
                                    vk::Extent3D const& extent,

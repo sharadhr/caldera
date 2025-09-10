@@ -5,11 +5,11 @@ module;
 #include <spdlog/spdlog.h>
 #include <VkBootstrap.h>
 
-export module Caldera.Engine;
+export module Caldera:Engine;
 
-import Caldera.Images;
-import Caldera.Initialisers;
-import Caldera.Types;
+import :Images;
+import :Initialisers;
+import :Types;
 
 import std;
 import vk_mem_alloc_hpp;
@@ -17,50 +17,6 @@ import vulkan_hpp;
 
 export namespace caldera
 {
-struct FrameCommand
-{
-	static constexpr auto FRAME_OVERLAP = 3U;
-	using TripleBuffered = std::array<FrameCommand, FRAME_OVERLAP>;
-
-	explicit FrameCommand(vk::raii::Device const& logical_device,
-	                      std::uint32_t queue_family_index,
-	                      vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-
-	static auto
-	makeFrameCommands(vk::raii::Device const& logical_device,
-	                  std::uint32_t queue_family_index,
-	                  vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-		-> TripleBuffered;
-
-	vk::raii::CommandPool commandPool_;
-	vk::raii::CommandBuffer mainCommandBuffer_;
-	vk::raii::Semaphore swapchainSemaphore_;
-	vk::raii::Semaphore renderSemaphore_;
-	vk::raii::Fence renderFence_;
-};
-
-struct AllocatedImage
-{
-	AllocatedImage(vk::Extent3D const& extent,
-	               vk::Format const& format,
-	               vk::raii::Device const& logical_device,
-	               vma::Allocator const& allocator,
-	               vk::ImageUsageFlags const& image_usage_flags);
-
-	~AllocatedImage();
-
-private:
-	using VMAImageAndMemory =
-		std::unique_ptr<std::pair<vk::Image, vma::Allocation>, decltype(vma::Allocator::destroyImage)>;
-
-public:
-	vk::Extent3D extent_;
-	vk::Format format_;
-	vma::Allocator const& allocator;
-	std::pair<vk::Image, vma::Allocation> imageAndMemory_;
-	vk::raii::ImageView view_{nullptr};
-};
-
 struct Engine
 {
 	explicit Engine(std::uint32_t width, std::uint32_t height, std::string_view name);
@@ -117,10 +73,6 @@ private:
 
 } // namespace caldera
 
-module :private;
-
-namespace
-{
 using namespace std::literals;
 
 constexpr auto ONE_SECOND = 1s;
@@ -158,56 +110,9 @@ constexpr auto debugCallbackRaw =
 
 		return vk::False;
 	}};
-} // namespace
 
 namespace caldera
 {
-FrameCommand::FrameCommand(vk::raii::Device const& logical_device,
-                           std::uint32_t queue_family_index,
-                           vk::CommandPoolCreateFlagBits flags) :
-	commandPool_{(logical_device.createCommandPool({.flags = flags, .queueFamilyIndex = queue_family_index}).value())},
-	mainCommandBuffer_{
-		std::move(logical_device
-                .allocateCommandBuffers(
-									{.commandPool = commandPool_, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1U})
-                .value()
-                .front())},
-	swapchainSemaphore_{(logical_device.createSemaphore({}).value())},
-	renderSemaphore_{(logical_device.createSemaphore({}).value())},
-	renderFence_{(logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value())}
-{}
-
-auto FrameCommand::makeFrameCommands(vk::raii::Device const& logical_device,
-                                     std::uint32_t queue_family_index,
-                                     vk::CommandPoolCreateFlagBits flags) -> TripleBuffered
-{
-	// there's probably a nice template way to produce an array from a range
-	return TripleBuffered{FrameCommand(logical_device, queue_family_index, flags),
-	                      FrameCommand(logical_device, queue_family_index, flags),
-	                      FrameCommand(logical_device, queue_family_index, flags)};
-}
-
-AllocatedImage::AllocatedImage(vk::Extent3D const& extent,
-                               vk::Format const& format,
-                               vk::raii::Device const& logical_device,
-                               vma::Allocator const& allocator,
-                               vk::ImageUsageFlags const& image_usage_flags) :
-	extent_{extent},
-	format_{format},
-	allocator{allocator},
-	imageAndMemory_{
-		allocator
-			.createImage(init::makeImageCreateInfo(format_, extent_, image_usage_flags),
-                   {.usage = vma::MemoryUsage::eGpuOnly, .requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal})
-			.value},
-	view_{
-		logical_device
-			.createImageView(init::makeImageViewCreateInfo(format_, imageAndMemory_.first, vk::ImageAspectFlagBits::eColor))
-			.value()}
-{}
-
-AllocatedImage::~AllocatedImage() { allocator.destroyImage(imageAndMemory_.first, imageAndMemory_.second); }
-
 Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const name) :
 	name_{name},
 	windowExtent_{.width = width, .height = height},
@@ -372,9 +277,9 @@ auto Engine::makeWindow() const -> UniqueSDLWindow
 
 #pragma warning(push)
 #pragma warning(disable : 4365)
-	if (auto* const window =
-	      SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowExtent_.width, // NOLINT(*-narrowing-conversions)
-	                       windowExtent_.height, SDL_WINDOW_VULKAN); // NOLINT(*-narrowing-conversions)
+	if (auto* const window = SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+	                                          windowExtent_.width,                      // NOLINT(*-narrowing-conversions)
+	                                          windowExtent_.height, SDL_WINDOW_VULKAN); // NOLINT(*-narrowing-conversions)
 #pragma warning(pop)
 	    window == nullptr) {
 		spdlog::error("Failed to create SDL Window: {}"sv, SDL_GetError());

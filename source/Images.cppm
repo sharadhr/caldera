@@ -1,11 +1,9 @@
-module;
-
-export module Caldera.Images;
+module Caldera:Images;
 
 import std;
 import vulkan_hpp;
 
-export namespace caldera::util
+namespace caldera::util
 {
 auto transitionImage(vk::raii::CommandBuffer const& command,
                      vk::Image const& image,

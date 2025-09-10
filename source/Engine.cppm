@@ -19,6 +19,12 @@ export namespace caldera
 {
 struct Engine
 {
+	static auto getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&;
+	auto run() -> void;
+
+private:
+	using UniqueSDLWindow = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>;
+
 	explicit Engine(std::uint32_t width, std::uint32_t height, std::string_view name);
 	~Engine() = default;
 	Engine(Engine const& other) = delete;
@@ -26,16 +32,6 @@ struct Engine
 	auto operator=(Engine const& other) -> Engine& = delete;
 	auto operator=(Engine&& other) noexcept -> Engine& = delete;
 
-	static auto getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&;
-	auto getCurrentFrame() -> FrameCommand&;
-	auto draw() -> void;
-	auto drawBackground(vk::raii::CommandBuffer const& command_buffer) const -> void;
-	auto run() -> void;
-
-private:
-	using UniqueSDLWindow = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>;
-
-	std::string name_;
 	auto makeWindow() const -> UniqueSDLWindow;
 	auto buildBootstrapInstance() const -> vkb::Instance;
 	auto buildBootstrapDevice() const -> vkb::PhysicalDevice;
@@ -43,6 +39,11 @@ private:
 	auto buildBootstrapSwapchain() const -> vkb::Swapchain;
 	auto makeSwapchainImageViews() -> std::vector<vk::raii::ImageView>;
 
+	auto getCurrentFrame() -> FrameCommand&;
+	auto draw() -> void;
+	auto drawBackground(vk::raii::CommandBuffer const& command_buffer) const -> void;
+
+	std::string name_;
 	std::size_t frameIndex_{};
 	bool pauseRendering_{};
 	vk::Extent2D windowExtent_;
@@ -146,6 +147,12 @@ Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const
              vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
                | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment}
 {}
+
+auto Engine::getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&
+{
+	static auto engine = Engine{width, height, name};
+	return engine;
+}
 
 auto Engine::getCurrentFrame() -> FrameCommand& { return frames_.at(frameIndex_ % FrameCommand::FRAME_OVERLAP); }
 

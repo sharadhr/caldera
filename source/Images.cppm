@@ -52,7 +52,13 @@ auto copyImageToImage(vk::raii::CommandBuffer const& buffer,
 	                    .z = 1U}}}},
 	};
 
-	auto const blit_info = vk::BlitImageInfo2{.srcImage = source, .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal, .dstImage = destination, .dstImageLayout = vk::ImageLayout::eTransferDstOptimal, .regionCount = 1U, .filter = vk::Filter::eLinear}.setRegions(blit_region);
+	auto const blit_info = vk::BlitImageInfo2{.srcImage = source,
+	                                          .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal,
+	                                          .dstImage = destination,
+	                                          .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
+	                                          .regionCount = 1U,
+	                                          .filter = vk::Filter::eLinear}
+	                         .setRegions(blit_region);
 
 	buffer.blitImage2(blit_info);
 }

@@ -38,6 +38,7 @@ InsertBraces: true
 PointerAlignment: Left
 QualifierAlignment: Custom
 QualifierOrder: [ static, constexpr, inline, volatile, type, const ]
+IndentWidth: 2
 TabWidth: 2
 UseTab: AlignWithSpaces
 SeparateDefinitionBlocks: Always
@@ -48,3 +49,4 @@ BreakConstructorInitializers: AfterColon
 ConstructorInitializerIndentWidth: 2
 SortIncludes: CaseInsensitive
 AllowAllArgumentsOnNextLine: false
+Cpp11BracedListStyle: true

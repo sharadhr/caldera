@@ -34,3 +34,10 @@ performance-*,
 -performance-no-int-to-ptr,
 -performance-avoid-endl,
 portability-simd-intrinsics'
+CheckOptions:
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: true
+  - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
+    value: true
+  - key: bugprone-lambda-function-name.IgnoreMacros
+    value: true

@@ -1,39 +1,36 @@
-set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
-if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
 	set(CMAKE_CROSSCOMPILING OFF CACHE BOOL "")
 endif ()
-if(NOT DEFINED ENV{LLVM_MINGW_SYSROOT})
-	message(FATAL_ERROR "The environment variable `LLVM_MINGW_SYSROOT` must be set to the LLVM MinGW sysroot path")
-endif()
 
-set(CMAKE_SYSROOT "$ENV{LLVM_MINGW_SYSROOT}")
-
-set(CMAKE_C_COMPILER_TARGET "x86_64-w64-mingw32")
-set(CMAKE_CXX_COMPILER_TARGET "x86_64-w64-mingw32")
+set(TARGET "x86_64-w64-mingw32")
+set(CMAKE_C_COMPILER_TARGET ${TARGET})
+set(CMAKE_CXX_COMPILER_TARGET ${TARGET})
 
 set(COMPILER_ARGS
-	"-g"
-	"-stdlib=libc++"
+	"--start-no-unused-arguments"
+	"-gcodeview"
+	"--end-no-unused-arguments"
 	"-ferror-limit=0"
-    "-fms-extensions"
+	"-fms-extensions"
 	"-fms-hotpatch"
 )
 
 set(CMAKE_C_COMPILER
-	"clang"
+	"${TARGET}-clang${CMAKE_HOST_EXECUTABLE_SUFFIX}"
 	${COMPILER_ARGS}
 )
 set(CMAKE_CXX_COMPILER
-	"clang++"
+	"${TARGET}-clang++${CMAKE_HOST_EXECUTABLE_SUFFIX}"
 	${COMPILER_ARGS}
 )
 set(CMAKE_ASM_COMPILER
-	"clang"
+	"${TARGET}-clang${CMAKE_HOST_EXECUTABLE_SUFFIX}"
 	${COMPILER_ARGS}
 )
 set(CMAKE_RC_COMPILER
-	"llvm-rc"
+	"llvm-rc${CMAKE_HOST_EXECUTABLE_SUFFIX}"
 )
 
 set(CMAKE_LINKER_TYPE LLD)
@@ -78,45 +75,37 @@ if (NOT DEFINED _VCPKG_ROOT_DIR)
 		"-Wwrite-strings"
 	)
 endif ()
-string(JOIN " " LINKER_FLAGS
-	"-stdlib=libc++"
-	"-static-libstdc++"
-	"--start-no-unused-arguments"
-	"--rtlib=compiler-rt"
-	"--unwindlib=libunwind"
-	"-static-libgcc"
-	"--end-no-unused-arguments"
-)
 string(JOIN " " ASAN_FLAGS
+	"-O3"
 	"-fsanitize=address,undefined"
 	"-fno-omit-frame-pointer"
 )
-set(TSAN_FLAGS "-fsanitize=thread,undefined")
+string(JOIN " " TSAN_FLAGS
+	"-O3"
+	"-fsanitize=thread,undefined"
+)
 
-# different possible flag types
-set(FLAG_TYPES "C" "CXX" "EXE_LINKER" "SHARED_LINKER" "MODULE_LINKER")
+string(JOIN " " LTO_FLAGS
+	"-march=native"
+	"-flto=thin"
+)
 
-# Add a new build type: LTO, equal to Release but with LTO
-if ($ENV{BUILD_WITH_LTO})
-	foreach (FLAG_TYPE ${FLAG_TYPES})
-		set(CMAKE_${FLAG_TYPE}_FLAGS_LTO "-O3" CACHE STRING "" FORCE)
-	endforeach ()
-
-	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-	set(CMAKE_MAP_IMPORTED_CONFIG_LTO "Release" "RelWithDebInfo" "MinSizeRel")
-endif ()
-
-# Add `ASan` and `TSan` build types
+set(FLAG_TYPES "C" "CXX")
 foreach (CONFIG "ASAN" "TSAN")
 	foreach (FLAG_TYPE ${FLAG_TYPES})
 		set(CMAKE_${FLAG_TYPE}_FLAGS_${CONFIG} "${${CONFIG}_FLAGS}" CACHE STRING "" FORCE)
 	endforeach ()
+	set(CMAKE_MAP_IMPORTED_CONFIG_${CONFIG} "Release" "RelWithDebInfo" "MinSizeRel" "")
 endforeach ()
 
-# Set the default flags
-set(CMAKE_C_FLAGS_DEBUG_INIT ${WARNING_FLAGS})
+# Set the default flags for normal build types
+set(CMAKE_C_FLAGS_INIT ${WARNING_FLAGS})
 set(CMAKE_CXX_FLAGS_INIT ${WARNING_FLAGS})
-set(CMAKE_CXX_FLAGS_DEBUG_INIT "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG ${WARNING_FLAGS}")
-set(CMAKE_CXX_FLAGS_RELEASE_INIT "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST ${WARNING_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS_INIT ${LINKER_FLAGS})
 set(CMAKE_SHARED_LINKER_FLAGS_INIT ${LINKER_FLAGS})
+
+# For release, which is LTOed
+set(CMAKE_C_FLAGS_RELEASE_INIT ${LTO_FLAGS})
+set(CMAKE_CXX_FLAGS_RELEASE_INIT ${LTO_FLAGS})
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT "-flto=thin")
+set(CMAKE_SHARED_LINKER_FLAGS_RELEASE_INIT "-flto=thin")

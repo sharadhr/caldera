@@ -46,6 +46,7 @@ if (NOT DEFINED _VCPKG_ROOT_DIR)
 		"/w14906"
 		"/w14928"
 		"/w45038"
+		"/wd4324"
 		"/W4"
 		"/permissive-"
 		"/volatile:iso"

@@ -56,6 +56,7 @@
         "windows-base"
       ],
       "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;ASan;TSan",
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/clang-mingw.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static"
       },

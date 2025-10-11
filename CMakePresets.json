@@ -34,8 +34,7 @@
     {
       "name": "windows-clang-msvc-asan",
       "configuration": "ASan",
-      "configurePreset": "windows-clang-msvc",
-      "verbose": true
+      "configurePreset": "windows-clang-msvc"
     },
     {
       "name": "windows-cl-debug",
@@ -70,6 +69,11 @@
     {
       "name": "windows-clang-mingw-asan",
       "configuration": "ASan",
+      "configurePreset": "windows-clang-mingw"
+    },
+    {
+      "name": "windows-clang-mingw-tsan",
+      "configuration": "TSan",
       "configurePreset": "windows-clang-mingw"
     }
   ]

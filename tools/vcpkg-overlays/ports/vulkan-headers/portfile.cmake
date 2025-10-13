@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO KhronosGroup/Vulkan-Headers
-    REF "vulkan-sdk-${VERSION}"
-    SHA512 1199344dcfe8c074926cffad6b921730ba46802d39e70d7acc23d8764549cf1070432215095b7305f7b61397d14a5e48966ced87f1a39b93d5992c1d8e97ba35
+    REF "v${VERSION}"
+    SHA512 306f2d1922441240f28cafcb27f9ff97c363cc464dcd3d02a94729c0b8b1e17e4082f22e379b14c9db12a35be221a86369077bcec5b59a310caa01ae4ce378d3
     HEAD_REF main
 )
 
@@ -10,7 +10,6 @@ set(VCPKG_BUILD_TYPE release) # header-only port
 
 vcpkg_cmake_configure(SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
-        -DVULKAN_HEADERS_ENABLE_MODULE=ON
         -DVULKAN_HEADERS_ENABLE_TESTS=OFF
 )
 vcpkg_cmake_install()

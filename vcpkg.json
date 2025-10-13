@@ -12,8 +12,8 @@
         "vulkan"
       ]
     },
+    "quill",
     "shader-slang",
-    "spdlog",
     "vk-bootstrap",
     "vulkan",
     "vulkan-headers",

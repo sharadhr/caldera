@@ -1,14 +1,15 @@
 module;
 
+#include <quill/LogMacros.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
-#include <spdlog/spdlog.h>
 #include <VkBootstrap.h>
 
 export module Caldera:Engine;
 
 import :Images;
 import :Initialisers;
+import :Logging;
 import :Types;
 
 import std;
@@ -35,7 +36,7 @@ private:
 	auto makeWindow() const -> UniqueSDLWindow;
 	auto buildBootstrapInstance() const -> vkb::Instance;
 	auto buildBootstrapDevice() const -> vkb::PhysicalDevice;
-	auto makeSurface() -> vk::raii::SurfaceKHR;
+	auto makeSurface() noexcept -> vk::raii::SurfaceKHR;
 	auto buildBootstrapSwapchain() const -> vkb::Swapchain;
 	auto makeSwapchainImageViews() -> std::vector<vk::raii::ImageView>;
 
@@ -84,27 +85,26 @@ constexpr auto debugCallbackRaw =
                                           VkDebugUtilsMessageTypeFlagsEXT const type,
                                           VkDebugUtilsMessengerCallbackDataEXT const* callback_data,
                                           [[maybe_unused]] void* data) {
-		static constexpr auto format = "[Vulkan: {}] : {}"sv;
+		caldera::log::setupQuill();
+
+		static constexpr auto format = "[Vulkan: {}] : {}";
 
 		switch (static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(severity)) {
 		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
-#if defined(DEBUG) || defined(_DEBUG) || !defined(_NDEBUG)
-			spdlog::trace(format, to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)), callback_data->pMessage);
-#endif
+			LOG_TRACE_L1(caldera::log::logger, format, to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
+		               callback_data->pMessage); // NOLINT(*-avoid-do-while)
 			break;
 		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
-#if defined(DEBUG) || defined(_DEBUG) || !defined(_NDEBUG)
-			spdlog::info(format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
-		               callback_data->pMessage);
-#endif
+			LOG_INFO(caldera::log::logger, format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
+		           callback_data->pMessage);
 			break;
 		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
-			spdlog::warn(format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
-		               callback_data->pMessage);
+			LOG_WARNING(caldera::log::logger, format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
+		              callback_data->pMessage);
 			break;
 		case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
-			spdlog::error(format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
-		                callback_data->pMessage);
+			LOG_ERROR(caldera::log::logger, format, vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(type)),
+		            callback_data->pMessage);
 			break;
 		default: std::unreachable();
 		}
@@ -261,13 +261,13 @@ auto Engine::run() -> void
 			pauseRendering_ = event.type == SDL_WINDOWEVENT and event.window.event == SDL_WINDOWEVENT_MINIMIZED;
 
 			if (event.type == SDL_KEYDOWN) {
-				SPDLOG_INFO("Key pressed: {}"sv, SDL_GetKeyName(event.key.keysym.sym));
+				LOG_INFO(caldera::log::logger, "Key pressed: {}", SDL_GetKeyName(event.key.keysym.sym));
 			}
 
 			if (pauseRendering_) {
 				using namespace std::literals;
 
-				// std::this_thread::sleep_for(HUNDRED_MILLISECONDS);
+				std::this_thread::sleep_for(HUNDRED_MILLISECONDS);
 			}
 		}
 		draw();
@@ -278,7 +278,7 @@ auto Engine::run() -> void
 auto Engine::makeWindow() const -> UniqueSDLWindow
 {
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-		spdlog::error("Failed to initialise SDL: {}"sv, SDL_GetError());
+		LOG_ERROR(caldera::log::logger, "Failed to initialise SDL: {}", SDL_GetError());
 		std::exit(EXIT_FAILURE);
 	}
 
@@ -289,7 +289,7 @@ auto Engine::makeWindow() const -> UniqueSDLWindow
 	                                          windowExtent_.height, SDL_WINDOW_VULKAN); // NOLINT(*-narrowing-conversions)
 #pragma warning(pop)
 	    window == nullptr) {
-		spdlog::error("Failed to create SDL Window: {}"sv, SDL_GetError());
+		LOG_ERROR(caldera::log::logger, "Failed to create SDL Window: {}", SDL_GetError());
 		std::exit(EXIT_FAILURE);
 	} else {
 		return UniqueSDLWindow{window, &SDL_DestroyWindow};
@@ -307,7 +307,7 @@ auto Engine::buildBootstrapInstance() const -> vkb::Instance
 	                                   .require_api_version(1, 3, 0)
 	                                   .build();
 	    !instance_result) {
-		spdlog::error("Failed to build boostrap instance: {}", instance_result.error().message());
+		LOG_ERROR(caldera::log::logger, "Failed to build boostrap instance: {}", instance_result.error().message());
 		std::exit(EXIT_FAILURE);
 	} else {
 		return instance_result.value();
@@ -327,17 +327,17 @@ auto Engine::buildBootstrapDevice() const -> vkb::PhysicalDevice
 	                          .set_required_features_12(features_1_2)
 	                          .select();
 	    !device) {
-		spdlog::error("Failed to build bootstrap device: {}", device.error().message());
+		LOG_ERROR(caldera::log::logger, "Failed to build bootstrap device: {}", device.error().message());
 		std::exit(EXIT_FAILURE);
 	} else {
 		return device.value();
 	}
 }
 
-auto Engine::makeSurface() -> vk::raii::SurfaceKHR
+auto Engine::makeSurface() noexcept -> vk::raii::SurfaceKHR
 {
 	if (SDL_Vulkan_CreateSurface(window_.get(), *instance_, &rawSurface_) != SDL_TRUE) {
-		spdlog::error("Failed to create SDL surface: {}", SDL_GetError());
+		LOG_ERROR(caldera::log::logger, "Failed to create SDL surface: {}", SDL_GetError());
 		std::exit(EXIT_FAILURE);
 	}
 
@@ -356,7 +356,7 @@ auto Engine::buildBootstrapSwapchain() const -> vkb::Swapchain
 	        .add_image_usage_flags(static_cast<VkImageUsageFlags>(vk::ImageUsageFlagBits::eTransferDst))
 	        .build();
 	    !maybe_swapchain) {
-		spdlog::error("Failed to create bootstrap swapchain: {}", maybe_swapchain.error().message());
+		LOG_ERROR(caldera::log::logger, "Failed to create bootstrap swapchain: {}", maybe_swapchain.error().message());
 		std::exit(EXIT_FAILURE);
 	} else {
 		return maybe_swapchain.value();

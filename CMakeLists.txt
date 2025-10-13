@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 4.1)
 
 project(caldera LANGUAGES CXX)
 include(libraries)
@@ -12,12 +12,13 @@ target_sources(caldera
 			source/Engine.cppm
 			source/Images.cppm
 			source/Initialisers.cppm
+			source/Logging.cppm
 			source/Types.cppm
 )
 target_link_libraries(caldera PRIVATE
+	quill::quill
 	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
 	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
-	spdlog::spdlog
 	vk-bootstrap::vk-bootstrap
 	VulkanHppModule
 	VulkanMemoryAllocatorHppModule

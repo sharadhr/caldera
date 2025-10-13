@@ -1,10 +1,11 @@
 module;
 
-#include <spdlog/spdlog.h>
+#include <quill/LogMacros.h>
 
 module Caldera:Types;
 
 import :Initialisers;
+import :Logging;
 
 import std;
 import vk_mem_alloc_hpp;
@@ -88,7 +89,7 @@ public:
 
 constexpr inline auto checkResult = [](vk::Result const& result) {
 	if (result != vk::Result::eSuccess) {
-		spdlog::error("Vulkan error: {}", vk::to_string(result));
+		LOG_ERROR(caldera::log::logger, "Vulkan error: {}", vk::to_string(result));
 	}
 	return result == vk::Result::eSuccess;
 };

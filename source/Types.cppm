@@ -21,16 +21,15 @@ struct FrameCommand
 	explicit FrameCommand(vk::raii::Device const& logical_device,
 	                      std::uint32_t queue_family_index,
 	                      vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer) :
-		commandPool_{(logical_device.createCommandPool({.flags = flags, .queueFamilyIndex = queue_family_index}).value())},
+		commandPool_{logical_device.createCommandPool({.flags = flags, .queueFamilyIndex = queue_family_index}).value},
 		mainCommandBuffer_{
 			std::move(logical_device
 	                .allocateCommandBuffers(
 										{.commandPool = commandPool_, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1U})
-	                .value()
-	                .front())},
-		swapchainSemaphore_{(logical_device.createSemaphore({}).value())},
-		renderSemaphore_{(logical_device.createSemaphore({}).value())},
-		renderFence_{(logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value())}
+	                .value.front())},
+		swapchainSemaphore_{(logical_device.createSemaphore({}).value)},
+		renderSemaphore_{(logical_device.createSemaphore({}).value)},
+		renderFence_{(logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value)}
 	{}
 
 	static auto
@@ -70,18 +69,19 @@ struct AllocatedImage
 		view_{
 			logical_device
 				.createImageView(init::makeImageViewCreateInfo(format_, imageAndMemory_.first, vk::ImageAspectFlagBits::eColor))
-				.value()}
+				.value}
 	{}
 
 	~AllocatedImage() { allocator.destroyImage(imageAndMemory_.first, imageAndMemory_.second); }
 
-private:
-	using VMAImageAndMemory =
-		std::unique_ptr<std::pair<vk::Image, vma::Allocation>, decltype(vma::Allocator::destroyImage)>;
+	AllocatedImage(AllocatedImage const& other) = delete;
+	AllocatedImage(AllocatedImage&& other) = default;
+	auto operator=(AllocatedImage const& rhs) const noexcept -> AllocatedImage& = delete;
+	auto operator=(AllocatedImage&& rhs) -> AllocatedImage& = delete;
 
-public:
 	vk::Extent3D extent_;
 	vk::Format format_;
+	// TODO: This is dodgy, we are waiting for VMA-Hpp to support RAII:
 	vma::Allocator const& allocator;
 	std::pair<vk::Image, vma::Allocation> imageAndMemory_;
 	vk::raii::ImageView view_{nullptr};

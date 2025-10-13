@@ -12,7 +12,6 @@ import :Initialisers;
 import :Logging;
 import :Types;
 
-import std;
 import vk_mem_alloc_hpp;
 import vulkan_hpp;
 
@@ -21,17 +20,19 @@ export namespace caldera
 struct Engine
 {
 	static auto getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&;
+
+	~Engine() = default;
+	Engine(Engine const& other) = delete;
+	Engine(Engine&& other) noexcept = delete;
+	auto operator=(Engine const& other) -> Engine& = delete;
+	auto operator=(Engine&& other) noexcept -> Engine& = delete;
+
 	auto run() -> void;
 
 private:
 	using UniqueSDLWindow = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>;
 
 	explicit Engine(std::uint32_t width, std::uint32_t height, std::string_view name);
-	~Engine() = default;
-	Engine(Engine const& other) = delete;
-	Engine(Engine&& other) noexcept = delete;
-	auto operator=(Engine const& other) -> Engine& = delete;
-	auto operator=(Engine&& other) noexcept -> Engine& = delete;
 
 	auto makeWindow() const -> UniqueSDLWindow;
 	auto buildBootstrapInstance() const -> vkb::Instance;
@@ -128,7 +129,7 @@ Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view const
 	logicalDevice_{physicalDevice_, bootstrapLogicalDevice_.device},
 	bootstrapSwapchain_{buildBootstrapSwapchain()},
 	swapchain_{logicalDevice_, bootstrapSwapchain_.swapchain},
-	swapchainImages_(swapchain_.getImages()),
+	swapchainImages_(swapchain_.getImages().value),
 	swapchainImageViews_(makeSwapchainImageViews()),
 	swapchainExtent_{.width = bootstrapSwapchain_.extent.width, .height = bootstrapSwapchain_.extent.height},
 	graphicsQueueFamily_{bootstrapLogicalDevice_.get_queue_index(vkb::QueueType::graphics).value()},

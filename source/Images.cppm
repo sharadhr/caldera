@@ -5,10 +5,10 @@ import vulkan_hpp;
 
 namespace caldera::util
 {
-auto transitionImage(vk::raii::CommandBuffer const& command,
+auto transitionImage(vk::raii::CommandBuffer const& command, // NOLINT(*-use-internal-linkage)
                      vk::Image const& image,
-                     vk::ImageLayout current_layout,
-                     vk::ImageLayout new_layout)
+                     vk::ImageLayout const current_layout,
+                     vk::ImageLayout const new_layout)
 {
 	auto const aspect_mask = new_layout == vk::ImageLayout::eDepthAttachmentOptimal ? vk::ImageAspectFlagBits::eDepth
 	                                                                                : vk::ImageAspectFlagBits::eColor;
@@ -33,7 +33,7 @@ auto copyImageToImage(vk::raii::CommandBuffer const& buffer,
                       vk::Image const& source,
                       vk::Image const& destination,
                       vk::Extent2D const& source_extent,
-                      vk::Extent2D destination_extent) -> void
+                      vk::Extent2D const& destination_extent) -> void
 {
 	constexpr auto sub_resource =
 		vk::ImageSubresourceLayers{.aspectMask = vk::ImageAspectFlagBits::eColor, .layerCount = 1U};
@@ -41,14 +41,14 @@ auto copyImageToImage(vk::raii::CommandBuffer const& buffer,
 		.srcSubresource = sub_resource,
 		.srcOffsets = {{
 			{{},
-	     {.x = static_cast<std::int32_t>(source_extent.width),
-	      .y = static_cast<std::int32_t>(source_extent.height),
+	     {.x = static_cast<std::int32_t>(source_extent.width),  // NOLINT(*-narrowing-conversions)
+	      .y = static_cast<std::int32_t>(source_extent.height), // NOLINT(*-narrowing-conversions)
 	      .z = 1U}},
 		}},
 		.dstSubresource = sub_resource,
 		.dstOffsets = {{{{},
-	                   {.x = static_cast<std::int32_t>(destination_extent.width),
-	                    .y = static_cast<std::int32_t>(destination_extent.height),
+	                   {.x = static_cast<std::int32_t>(destination_extent.width),  // NOLINT(*-narrowing-conversions)
+	                    .y = static_cast<std::int32_t>(destination_extent.height), // NOLINT(*-narrowing-conversions)
 	                    .z = 1U}}}},
 	};
 

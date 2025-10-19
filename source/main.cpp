@@ -1,7 +1,4 @@
 import Caldera;
-import std;
-
-using namespace std::literals;
 
 auto main() -> int
 {

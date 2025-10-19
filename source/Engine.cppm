@@ -159,6 +159,7 @@ auto Engine::getCurrentFrame() -> FrameCommand& { return frames_.at(frameIndex_ 
 
 auto Engine::draw() -> void
 {
+	static constexpr auto reset_failed_format = "Command buffer operation failed: {}, {}";
 #pragma warning(push)
 #pragma warning(disable : 4365)
 	static constexpr auto nanoseconds_in_a_second = NANOSECONDS_IN_ONE_SECOND.count();
@@ -181,7 +182,7 @@ auto Engine::draw() -> void
 	auto const& swapchain_image = swapchainImages_[swapchain_image_index];
 
 	auto const& command_buffer = getCurrentFrame().mainCommandBuffer_;
-	command_buffer.reset();
+	checkResult(command_buffer.reset());
 
 	drawExtent_ = {.width = drawImage_.extent_.width, .height = drawImage_.extent_.height};
 
@@ -205,14 +206,13 @@ auto Engine::draw() -> void
 	util::transitionImage(command_buffer, swapchain_image, vk::ImageLayout::eTransferDstOptimal,
 	                      vk::ImageLayout::ePresentSrcKHR);
 
-	command_buffer.end();
+	checkResult(command_buffer.end());
 
 	// *** Submit the command buffer ***
-	auto const command_submit_info = vk::CommandBufferSubmitInfo{.commandBuffer = command_buffer};
-
 	auto const wait_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().swapchainSemaphore_,
-	                                               .value = 1,
-	                                               .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput};
+																							 .value = 1,
+																							 .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput};
+	auto const command_submit_info = vk::CommandBufferSubmitInfo{.commandBuffer = command_buffer};
 	auto const signal_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().renderSemaphore_,
 	                                                 .value = 1,
 	                                                 .stageMask = vk::PipelineStageFlagBits2::eAllGraphics};

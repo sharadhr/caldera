@@ -4,6 +4,7 @@
     "argparse",
     "directx-dxc",
     "directxmath",
+    "efsw",
     "glaze",
     "imgui",
     {

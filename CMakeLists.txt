@@ -16,6 +16,7 @@ target_sources(caldera
 			source/Types.cppm
 )
 target_link_libraries(caldera PRIVATE
+	efsw::efsw
 	quill::quill
 	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
 	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>

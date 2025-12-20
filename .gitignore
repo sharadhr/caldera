@@ -4,3 +4,4 @@ out/*
 .vscode/*
 *.pdb
 *.proj.DotSettings
+Folder.DotSettings.user

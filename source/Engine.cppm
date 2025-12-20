@@ -12,8 +12,8 @@ import :Initialisers;
 import :Logging;
 import :Types;
 
-import vk_mem_alloc_hpp;
-import vulkan_hpp;
+import vk_mem_alloc;
+import vulkan;
 
 export namespace caldera
 {

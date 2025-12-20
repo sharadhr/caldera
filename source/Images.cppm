@@ -1,7 +1,6 @@
 module Caldera:Images;
 
-import std;
-import vulkan_hpp;
+import vulkan;
 
 namespace caldera::util
 {
@@ -16,14 +15,14 @@ auto transitionImage(vk::raii::CommandBuffer const& command, // NOLINT(*-use-int
 	                                                         .levelCount = vk::RemainingMipLevels,
 	                                                         .layerCount = vk::RemainingArrayLayers};
 	auto const image_barrier =
-		vk::ImageMemoryBarrier2{.srcStageMask = vk::PipelineStageFlagBits2::eAllCommands,
-	                          .srcAccessMask = vk::AccessFlagBits2::eMemoryWrite,
-	                          .dstStageMask = vk::PipelineStageFlagBits2::eAllCommands,
-	                          .dstAccessMask = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
-	                          .oldLayout = current_layout,
-	                          .newLayout = new_layout,
-	                          .image = image,
-	                          .subresourceRange = subresource_range};
+	    vk::ImageMemoryBarrier2{.srcStageMask = vk::PipelineStageFlagBits2::eAllCommands,
+	                            .srcAccessMask = vk::AccessFlagBits2::eMemoryWrite,
+	                            .dstStageMask = vk::PipelineStageFlagBits2::eAllCommands,
+	                            .dstAccessMask = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
+	                            .oldLayout = current_layout,
+	                            .newLayout = new_layout,
+	                            .image = image,
+	                            .subresourceRange = subresource_range};
 
 	auto const dep_info = vk::DependencyInfo{}.setImageMemoryBarriers(image_barrier);
 	command.pipelineBarrier2(dep_info);
@@ -36,20 +35,20 @@ auto copyImageToImage(vk::raii::CommandBuffer const& buffer,
                       vk::Extent2D const& destination_extent) -> void
 {
 	constexpr auto sub_resource =
-		vk::ImageSubresourceLayers{.aspectMask = vk::ImageAspectFlagBits::eColor, .layerCount = 1U};
+	    vk::ImageSubresourceLayers{.aspectMask = vk::ImageAspectFlagBits::eColor, .layerCount = 1U};
 	auto const blit_region = vk::ImageBlit2{
-		.srcSubresource = sub_resource,
-		.srcOffsets = {{
-			{{},
-	     {.x = static_cast<std::int32_t>(source_extent.width),  // NOLINT(*-narrowing-conversions)
-	      .y = static_cast<std::int32_t>(source_extent.height), // NOLINT(*-narrowing-conversions)
-	      .z = 1U}},
-		}},
-		.dstSubresource = sub_resource,
-		.dstOffsets = {{{{},
-	                   {.x = static_cast<std::int32_t>(destination_extent.width),  // NOLINT(*-narrowing-conversions)
-	                    .y = static_cast<std::int32_t>(destination_extent.height), // NOLINT(*-narrowing-conversions)
-	                    .z = 1U}}}},
+	    .srcSubresource = sub_resource,
+	    .srcOffsets = {{
+	        {{},
+	         {.x = static_cast<std::int32_t>(source_extent.width),  // NOLINT(*-narrowing-conversions)
+	          .y = static_cast<std::int32_t>(source_extent.height), // NOLINT(*-narrowing-conversions)
+	          .z = 1U}},
+	    }},
+	    .dstSubresource = sub_resource,
+	    .dstOffsets = {{{{},
+	                     {.x = static_cast<std::int32_t>(destination_extent.width),  // NOLINT(*-narrowing-conversions)
+	                      .y = static_cast<std::int32_t>(destination_extent.height), // NOLINT(*-narrowing-conversions)
+	                      .z = 1U}}}},
 	};
 
 	auto const blit_info = vk::BlitImageInfo2{.srcImage = source,
@@ -58,7 +57,7 @@ auto copyImageToImage(vk::raii::CommandBuffer const& buffer,
 	                                          .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
 	                                          .regionCount = 1U,
 	                                          .filter = vk::Filter::eLinear}
-	                         .setRegions(blit_region);
+	                           .setRegions(blit_region);
 
 	buffer.blitImage2(blit_info);
 }

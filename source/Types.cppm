@@ -7,9 +7,8 @@ module Caldera:Types;
 import :Initialisers;
 import :Logging;
 
-import std;
-import vk_mem_alloc_hpp;
-import vulkan_hpp;
+import vk_mem_alloc;
+import vulkan;
 
 namespace caldera
 {

@@ -17,7 +17,7 @@ if(key STREQUAL "windows-x64" OR VCPKG_SHADER_SLANG_UPDATE)
 		ARCHIVE
 		URLS "https://github.com/shader-slang/slang/releases/download/v${VERSION}/slang-${VERSION}-windows-x86_64.zip"
 		FILENAME "slang-${VERSION}-windows-x86_64.zip"
-		SHA512 82533b688e100a1aba34be4ae5ef30cda158d7bb7f06f7f6d02a9d3b08b69277f4edc6650ed60967162b812835c9c8b5a85defb21aef0012a00dad5344340111
+		SHA512 f0db79c5c2b63223cc6ab5a9c67761ece0b6e7becd9200fd53f0659e499a29bec555acd29223adc066406c03ffe3cb7373a08efcdf94beb16bf3d36ee1426862
 	)
 endif()
 if(key STREQUAL "windows-arm64" OR VCPKG_SHADER_SLANG_UPDATE)

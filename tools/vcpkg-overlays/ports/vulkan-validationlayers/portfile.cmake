@@ -3,8 +3,8 @@ set(VCPKG_LIBRARY_LINKAGE dynamic)
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO KhronosGroup/Vulkan-ValidationLayers
-    REF "vulkan-sdk-${VERSION}"
-    SHA512 c4a6c81aa9bb88ffd4b6ffe6d219f74d9030f73a0f6002ccec16a4efc88a0b0738549008fd7271ea28c7ebd57c85c90e3754c8579ba0fa888bc5dcf66090e9a9
+    REF "v${VERSION}"
+    SHA512 5f033a5c70889a3827fce1b8da5ae1ea41f1dde6eb7e68f7f57062d0086057eac0683f8dd5dcac8f59cedd784e5c8f521b8f64473b5334eb0e7394171cee6a46
     HEAD_REF main
 )
 

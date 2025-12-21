@@ -1,5 +1,3 @@
-include(vulkan-cxx-modules)
-
 find_package(argparse CONFIG REQUIRED)
 find_package(directx-dxc CONFIG REQUIRED)
 find_package(directxmath CONFIG REQUIRED)
@@ -13,3 +11,6 @@ find_package(vk-bootstrap CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+
+include(vulkan-cxx-modules)
+add_subdirectory(source/quill_static)

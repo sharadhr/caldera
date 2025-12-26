@@ -26,7 +26,6 @@ set(CMAKE_RC_COMPILER
 	"C:/Program Files/LLVM/bin/llvm-rc${EXECUTABLE_SUFFIX}"
 )
 
-set(CMAKE_LINKER_TYPE LLD)
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug,RTC>:Debug>DLL")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -70,45 +69,25 @@ if (NOT DEFINED _VCPKG_ROOT_DIR)
 		"-Wwrite-strings"
 	)
 endif ()
-string(JOIN " " LINKER_FLAGS)
 
-# AddressSanitizer flags
-string(JOIN " " ASAN_COMPILER_FLAGS
+string(JOIN " " ASAN_FLAGS
 	"-O3"
 	"-fsanitize=address,undefined"
 	"-fno-omit-frame-pointer"
 )
-string(JOIN " " ASAN_LINKER_FLAGS
-	"-fsanitize=address,undefined"
+string(JOIN " " TSAN_FLAGS
+	"-O3"
+	"-fsanitize=thread,undefined"
 )
 
-# different possible flag types
-set(COMPILER_TYPES "C" "CXX")
-set(LINKER_TYPES "EXE_LINKER" "SHARED_LINKER" "MODULE_LINKER")
-set(FLAG_TYPES ${COMPILER_TYPES} ${LINKER_TYPES})
-
-# Add a new build type: LTO, equal to Release but with LTO
-if ($ENV{BUILD_WITH_LTO})
-	foreach (FLAG_TYPE ${FLAG_TYPES})
-		set(CMAKE_${FLAG_TYPE}_FLAGS_LTO "-O3" CACHE STRING "" FORCE)
-	endforeach ()
-
-	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-	set(CMAKE_MAP_IMPORTED_CONFIG_LTO "Release" "RelWithDebInfo" "MinSizeRel")
-endif ()
-
-# Add `ASan` and `TSan` build types
+set(FLAG_TYPES "C" "CXX")
 foreach (CONFIG "ASAN" "TSAN")
-	foreach (FLAG_TYPE ${COMPILER_TYPES})
-		set(CMAKE_${FLAG_TYPE}_FLAGS_${CONFIG} "${${CONFIG}_COMPILER_FLAGS}" CACHE STRING "" FORCE)
+	foreach (FLAG_TYPE ${FLAG_TYPES})
+		set(CMAKE_${FLAG_TYPE}_FLAGS_${CONFIG} "${${CONFIG}_FLAGS}" CACHE STRING "" FORCE)
 	endforeach ()
-	foreach (FLAG_TYPE ${LINKER_TYPES})
-		set(CMAKE_${FLAG_TYPE}_FLAGS_${CONFIG} "${${CONFIG}_LINKER_FLAGS}" CACHE STRING "" FORCE)
-	endforeach()
+	set(CMAKE_MAP_IMPORTED_CONFIG_${CONFIG} "Release" "RelWithDebInfo" "MinSizeRel" "")
 endforeach ()
 
-# Set the default flags
+# Set the default flags for normal build types
 set(CMAKE_C_FLAGS_INIT ${WARNING_FLAGS})
 set(CMAKE_CXX_FLAGS_INIT ${WARNING_FLAGS})
-set(CMAKE_EXE_LINKER_FLAGS_INIT ${LINKER_FLAGS})
-set(CMAKE_SHARED_LINKER_FLAGS_INIT ${LINKER_FLAGS})

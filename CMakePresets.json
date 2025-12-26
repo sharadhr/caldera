@@ -22,21 +22,6 @@
       "configurePreset": "linux-clang"
     },
     {
-      "name": "windows-clang-msvc-debug",
-      "configuration": "Debug",
-      "configurePreset": "windows-clang-msvc"
-    },
-    {
-      "name": "windows-clang-msvc-release",
-      "configuration": "Release",
-      "configurePreset": "windows-clang-msvc"
-    },
-    {
-      "name": "windows-clang-msvc-asan",
-      "configuration": "ASan",
-      "configurePreset": "windows-clang-msvc"
-    },
-    {
       "name": "windows-cl-debug",
       "configuration": "Debug",
       "configurePreset": "windows-cl"
@@ -75,6 +60,26 @@
       "name": "windows-clang-mingw-tsan",
       "configuration": "TSan",
       "configurePreset": "windows-clang-mingw"
+    },
+    {
+      "name": "windows-clang-msvc-debug",
+      "configuration": "Debug",
+      "configurePreset": "windows-clang-msvc"
+    },
+    {
+      "name": "windows-clang-msvc-release",
+      "configuration": "Release",
+      "configurePreset": "windows-clang-msvc"
+    },
+    {
+      "name": "windows-clang-msvc-asan",
+      "configuration": "ASan",
+      "configurePreset": "windows-clang-msvc"
+    },
+    {
+      "name": "windows-clang-msvc-tsan",
+      "configuration": "ASan",
+      "configurePreset": "windows-clang-msvc"
     }
   ]
 }

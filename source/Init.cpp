@@ -1,6 +1,4 @@
 module Caldera;
 
 namespace caldera
-{
-
-}
+{}

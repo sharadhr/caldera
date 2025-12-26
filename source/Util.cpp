@@ -41,15 +41,14 @@ auto setup_quill(std::string_view const log_file = ""sv)
 		auto console_sink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("sink_id_0"s);
 		logger = quill::Frontend::create_or_get_logger("root"s, std::move(console_sink), log_format);
 	} else {
-		auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
-		    log_file.data(),
-		    [] {
-			    auto config = quill::FileSinkConfig{};
-			    config.set_open_mode('w');
-			    config.set_filename_append_option(quill::FilenameAppendOption::StartDateTime);
-			    return config;
-		    }(),
-		    quill::FileEventNotifier{});
+		constexpr auto make_config = [] {
+			auto config = quill::FileSinkConfig{};
+			config.set_open_mode('w');
+			config.set_filename_append_option(quill::FilenameAppendOption::StartDateTime);
+			return config;
+		};
+		auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(log_file.data(), make_config(),
+		                                                                      quill::FileEventNotifier{});
 		logger = quill::Frontend::create_or_get_logger("root"s, std::move(file_sink), log_format);
 	}
 
@@ -60,7 +59,7 @@ auto setup_quill(std::string_view const log_file = ""sv)
 	}
 }
 
-constexpr auto vk_check = [](vk::Result const result, std::string_view const file, std::size_t const line) {
+constexpr auto vk_check = [](vk::Result const result, std::string_view const file, std::size_t const line) -> void {
 	if (result != vk::Result::eSuccess) {
 		LOG_ERROR(logger, "Vulkan error at {}:{} - {}", file.data(), line, vk::to_string(result));
 	}

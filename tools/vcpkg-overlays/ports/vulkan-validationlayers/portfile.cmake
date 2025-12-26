@@ -11,6 +11,11 @@ vcpkg_from_github(
 vcpkg_find_acquire_program(PYTHON3)
 get_filename_component(PYTHON3_DIR "${PYTHON3}" DIRECTORY)
 vcpkg_add_to_path("${PYTHON3_DIR}")
+vcpkg_replace_string(
+    "${SOURCE_PATH}/layers/utils/math_utils.h"
+    "#ifdef WIN32"
+    "#ifdef _WIN32"
+)
 
 vcpkg_cmake_configure(
   SOURCE_PATH "${SOURCE_PATH}"

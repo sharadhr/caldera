@@ -1,9 +1,9 @@
 add_library(caldera)
 target_sources(caldera
 	PUBLIC FILE_SET CXX_MODULES
-		FILES 
-			Caldera.cpp
-			Util.cpp
+	FILES
+		Caldera.cpp
+		Util.cpp
 	PRIVATE 
 		Engine.cpp
 		Images.cpp
@@ -13,7 +13,7 @@ target_sources(caldera
 
 target_link_libraries(caldera PRIVATE
 	efsw::efsw
-	quill_static
+	quill::quill
 	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
 	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
 	vk-bootstrap::vk-bootstrap
@@ -25,5 +25,5 @@ add_executable(engine main.cpp)
 target_link_libraries(engine
 	PRIVATE
 		caldera
-		quill_static
+		quill::quill
 )

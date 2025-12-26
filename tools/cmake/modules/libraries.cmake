@@ -13,4 +13,3 @@ find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 
 include(vulkan-cxx-modules)
-add_subdirectory(source/quill_static)

@@ -50,3 +50,6 @@ ConstructorInitializerIndentWidth: 4
 SortIncludes: CaseInsensitive
 AllowAllArgumentsOnNextLine: false
 Cpp11BracedListStyle: true
+InsertNewlineAtEOF: true
+IndentAccessModifiers: false
+IndentExportBlock: false

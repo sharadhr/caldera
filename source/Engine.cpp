@@ -9,7 +9,6 @@ module;
 module Caldera;
 
 import :Util;
-
 import vk_mem_alloc;
 import vulkan;
 
@@ -21,8 +20,7 @@ namespace caldera
 {
 auto Engine::getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&
 {
-	LOG_INFO(logger, "Static initialisation of engine with parameters: width: {}, height: {}, name: {}", width,
-	         height, name);
+	LOG_INFO(logger, "Statically initialising engine {}; width: {}, height: {}",name, width, height);
 	static auto engine = Engine{width, height, name};
 	return engine;
 }
@@ -41,8 +39,10 @@ auto Engine::run() -> void
 			// If user closes window
 			to_end = event.type == SDL_QUIT;
 
-			// pause rendering if minimised
-			renderingPaused_ = event.type == SDL_WINDOWEVENT and event.window.event == SDL_WINDOWEVENT_MINIMIZED;
+			// pause rendering if minimised or focus lost
+			renderingPaused_ = event.type == SDL_WINDOWEVENT
+			                   and (event.window.event == SDL_WINDOWEVENT_MINIMIZED
+			                        or event.window.event == SDL_WINDOWEVENT_FOCUS_LOST);
 
 			if (event.type == SDL_KEYDOWN) {
 				LOG_INFO(logger, "Key pressed: {}", SDL_GetKeyName(event.key.keysym.sym));
@@ -68,7 +68,8 @@ Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view name)
     surface_{makeSDLSurface()},
     vkbsSelectedPhysicalDevice_{selectDevice()},
     selectedPhysicalDevice_{instance_, vkbsSelectedPhysicalDevice_.physical_device},
-    device_{selectedPhysicalDevice_, vkb::DeviceBuilder{vkbsSelectedPhysicalDevice_}.build().value()}
+    device_{selectedPhysicalDevice_, vkb::DeviceBuilder{vkbsSelectedPhysicalDevice_}.build().value()},
+    swapchainData_{selectedPhysicalDevice_, device_, surface_, windowExtent_}
 {}
 
 auto Engine::draw() -> void { LOG_INFO(logger, "Drawing"); }
@@ -82,12 +83,19 @@ auto Engine::makeWindow() const -> UniqueSDLWindow
 	}
 #pragma warning(push)
 #pragma warning(disable : 4365)
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#endif
 	LOG_INFO(logger, "Creating SDL window");
 	if (auto* const window =
 	        SDL_CreateWindow(name_.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 	                         windowExtent_.width,                      // NOLINT(*-narrowing-conversions)
 	                         windowExtent_.height, SDL_WINDOW_VULKAN); // NOLINT(*-narrowing-conversions)
 #pragma warning(pop)
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 	    window == nullptr) {
 		LOG_ERROR(logger, "Failed to create SDL window: {}", SDL_GetError());
 		std::exit(EXIT_FAILURE);
@@ -164,11 +172,52 @@ auto Engine::selectDevice() const -> vkb::PhysicalDevice
 	                          .set_surface(*surface_);
 
 	if (auto maybe_device = selector.select(); not maybe_device.has_value()) {
-		LOG_ERROR(logger, "Could not find a physical device for the following reasons:\n{}",
+		LOG_ERROR(logger, "Could not find a physical device:\n{}",
 		          maybe_device.detailed_failure_reasons());
 		std::exit(EXIT_FAILURE);
 	} else {
 		return maybe_device.value();
 	}
+}
+
+Engine::SwapchainData::SwapchainData(vk::raii::PhysicalDevice const& selected_physical_device,
+                                     vk::raii::Device const& device,
+                                     vk::raii::SurfaceKHR const& surface,
+                                     vk::Extent2D const& window_extent) :
+    vkbsSwapchain_{makeVkbSwapchain(selected_physical_device, device, surface, window_extent)},
+    swapchain_{device, vkbsSwapchain_.swapchain},
+    swapchainImageFormat_{vkbsSwapchain_.image_format},
+    images_{swapchain_.getImages().value},
+    imageViews_{makeSwapchainImageViews(device)}
+{}
+
+auto Engine::SwapchainData::makeVkbSwapchain(vk::raii::PhysicalDevice const& selected_physical_device,
+                                             vk::raii::Device const& device,
+                                             vk::raii::SurfaceKHR const& surface,
+                                             vk::Extent2D const& window_extent) -> vkb::Swapchain
+{
+	constexpr auto surface_format =
+	    vk::SurfaceFormatKHR{.format = vk::Format::eB8G8R8A8Unorm, .colorSpace = vk::ColorSpaceKHR::eSrgbNonlinear};
+
+	auto const builder =
+	    vkb::SwapchainBuilder{*selected_physical_device, *device, *surface}
+	        .set_desired_format(surface_format)
+	        .set_desired_present_mode(static_cast<VkPresentModeKHR>(vk::PresentModeKHR::eFifo))
+	        .set_desired_extent(window_extent.width, window_extent.height)
+	        .add_image_usage_flags(static_cast<VkImageUsageFlags>(vk::ImageUsageFlagBits::eTransferDst))
+	        .build();
+
+	if (not builder.has_value()) {
+		LOG_ERROR(logger, "Could not create swapchain: {}", builder.error().message());
+		std::exit(EXIT_FAILURE);
+	}
+	return builder.value();
+}
+
+auto Engine::SwapchainData::makeSwapchainImageViews(vk::raii::Device const& device) -> decltype(imageViews_)
+{
+	return vkbsSwapchain_.get_image_views().value()
+	       | std::views::transform([&device](auto&& image_view) -> vk::raii::ImageView { return {device, image_view}; })
+	       | std::ranges::to<decltype(imageViews_)>();
 }
 } // namespace caldera

@@ -53,5 +53,28 @@ private:
 	vkb::PhysicalDevice vkbsSelectedPhysicalDevice_;
 	vk::raii::PhysicalDevice selectedPhysicalDevice_;
 	vk::raii::Device device_;
+
+	// Swapchain data; collects all the swapchain-related stuff together
+	struct SwapchainData
+	{
+		explicit SwapchainData(vk::raii::PhysicalDevice const& selected_physical_device,
+		                       vk::raii::Device const& device,
+		                       vk::raii::SurfaceKHR const& surface,
+		                       vk::Extent2D const& window_extent);
+		vkb::Swapchain vkbsSwapchain_;
+		vk::raii::SwapchainKHR swapchain_;
+		vk::Format swapchainImageFormat_;
+		std::vector<vk::Image> images_;
+		std::vector<vk::raii::ImageView> imageViews_;
+
+	private:
+		static auto makeVkbSwapchain(vk::raii::PhysicalDevice const& selected_physical_device,
+		                             vk::raii::Device const& device,
+		                             vk::raii::SurfaceKHR const& surface,
+		                             vk::Extent2D const& window_extent) -> vkb::Swapchain;
+		auto makeSwapchainImageViews(vk::raii::Device const& device) -> decltype(imageViews_);
+	};
+
+	SwapchainData swapchainData_;
 };
 } // namespace caldera

@@ -1,14 +1,15 @@
 add_library(caldera)
 target_sources(caldera
-	PUBLIC FILE_SET CXX_MODULES
+	PUBLIC FILE_SET public_cxx_modules TYPE CXX_MODULES
 	FILES
 		Caldera.cpp
 		Util.cpp
+		Types.cpp
+	# PRIVATE FILE_SET private_cxx_modules TYPE CXX_MODULES
 	PRIVATE 
 		Engine.cpp
 		Images.cpp
 		Init.cpp
-		Types.cpp
 )
 
 target_link_libraries(caldera PRIVATE

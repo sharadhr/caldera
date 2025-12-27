@@ -20,7 +20,7 @@ namespace caldera
 {
 auto Engine::getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&
 {
-	LOG_INFO(logger, "Statically initialising engine {}; width: {}, height: {}",name, width, height);
+	LOG_INFO(logger, "Statically initialising engine {}; width: {}, height: {}", name, width, height);
 	static auto engine = Engine{width, height, name};
 	return engine;
 }
@@ -58,18 +58,24 @@ auto Engine::run() -> void
 	}
 }
 
-Engine::Engine(std::uint32_t width, std::uint32_t height, std::string_view name) :
+Engine::Engine(std::uint32_t const width, std::uint32_t const height, std::string_view const name) :
     name_{name},
+    frameIndex_{},
+    renderingPaused_{},
     windowExtent_{.width = width, .height = height},
     window_{makeWindow()},
-    vkbsInstance_{makeBootstrapInstance()},
-    instance_{context_, vkbsInstance_.instance},
-    debugMessenger_{instance_, vkbsInstance_.debug_messenger},
+    bootstrapInstance_{makeBootstrapInstance()},
+    instance_{context_, bootstrapInstance_.instance},
+    debugMessenger_{instance_, bootstrapInstance_.debug_messenger},
     surface_{makeSDLSurface()},
-    vkbsSelectedPhysicalDevice_{selectDevice()},
-    selectedPhysicalDevice_{instance_, vkbsSelectedPhysicalDevice_.physical_device},
-    device_{selectedPhysicalDevice_, vkb::DeviceBuilder{vkbsSelectedPhysicalDevice_}.build().value()},
-    swapchainData_{selectedPhysicalDevice_, device_, surface_, windowExtent_}
+    bootstrapGPU_{selectDevice()},
+    bootstrapLogicalDevice_{vkb::DeviceBuilder{bootstrapGPU_}.build().value()},
+    selectedGPU_{instance_, bootstrapGPU_.physical_device},
+    logicalDevice_{selectedGPU_, bootstrapLogicalDevice_.device},
+    swapchainData_{selectedGPU_, logicalDevice_, surface_, windowExtent_},
+    graphicsQueueFamily_{bootstrapLogicalDevice_.get_queue_index(vkb::QueueType::graphics).value()},
+    graphicsQueue_{logicalDevice_, bootstrapLogicalDevice_.get_queue(vkb::QueueType::graphics).value()},
+    frames_{FrameCommand::makeTripleBufferedFrames(logicalDevice_, graphicsQueueFamily_)}
 {}
 
 auto Engine::draw() -> void { LOG_INFO(logger, "Drawing"); }
@@ -83,7 +89,7 @@ auto Engine::makeWindow() const -> UniqueSDLWindow
 	}
 #pragma warning(push)
 #pragma warning(disable : 4365)
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
@@ -93,7 +99,7 @@ auto Engine::makeWindow() const -> UniqueSDLWindow
 	                         windowExtent_.width,                      // NOLINT(*-narrowing-conversions)
 	                         windowExtent_.height, SDL_WINDOW_VULKAN); // NOLINT(*-narrowing-conversions)
 #pragma warning(pop)
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 	    window == nullptr) {
@@ -108,7 +114,7 @@ auto Engine::makeBootstrapInstance() const -> vkb::Instance
 {
 	LOG_INFO(logger, "Creating bootstrap instance");
 
-	constexpr auto debug_callback_raw = PFN_vkDebugUtilsMessengerCallbackEXT{
+	static constexpr auto debug_callback_raw = PFN_vkDebugUtilsMessengerCallbackEXT{
 	    [](VkDebugUtilsMessageSeverityFlagBitsEXT const severity, VkDebugUtilsMessageTypeFlagsEXT const type,
 	       VkDebugUtilsMessengerCallbackDataEXT const* callback_data, [[maybe_unused]] void* data) -> vk::Bool32 {
 		    static constexpr auto format = "[Vulkan: {}] : {}";
@@ -165,59 +171,17 @@ auto Engine::selectDevice() const -> vkb::PhysicalDevice
 	constexpr auto vulkan_12_features =
 	    vk::PhysicalDeviceVulkan12Features{}.setBufferDeviceAddress(vk::True).setDescriptorIndexing(vk::True);
 
-	auto const selector = vkb::PhysicalDeviceSelector{vkbsInstance_}
+	auto const selector = vkb::PhysicalDeviceSelector{bootstrapInstance_}
 	                          .set_minimum_version(1, 3)
 	                          .set_required_features_13(vulkan_13_features)
 	                          .set_required_features_12(vulkan_12_features)
 	                          .set_surface(*surface_);
 
 	if (auto maybe_device = selector.select(); not maybe_device.has_value()) {
-		LOG_ERROR(logger, "Could not find a physical device:\n{}",
-		          maybe_device.detailed_failure_reasons());
+		LOG_ERROR(logger, "Could not find a physical device:\n{}", maybe_device.detailed_failure_reasons());
 		std::exit(EXIT_FAILURE);
 	} else {
 		return maybe_device.value();
 	}
-}
-
-Engine::SwapchainData::SwapchainData(vk::raii::PhysicalDevice const& selected_physical_device,
-                                     vk::raii::Device const& device,
-                                     vk::raii::SurfaceKHR const& surface,
-                                     vk::Extent2D const& window_extent) :
-    vkbsSwapchain_{makeVkbSwapchain(selected_physical_device, device, surface, window_extent)},
-    swapchain_{device, vkbsSwapchain_.swapchain},
-    swapchainImageFormat_{vkbsSwapchain_.image_format},
-    images_{swapchain_.getImages().value},
-    imageViews_{makeSwapchainImageViews(device)}
-{}
-
-auto Engine::SwapchainData::makeVkbSwapchain(vk::raii::PhysicalDevice const& selected_physical_device,
-                                             vk::raii::Device const& device,
-                                             vk::raii::SurfaceKHR const& surface,
-                                             vk::Extent2D const& window_extent) -> vkb::Swapchain
-{
-	constexpr auto surface_format =
-	    vk::SurfaceFormatKHR{.format = vk::Format::eB8G8R8A8Unorm, .colorSpace = vk::ColorSpaceKHR::eSrgbNonlinear};
-
-	auto const builder =
-	    vkb::SwapchainBuilder{*selected_physical_device, *device, *surface}
-	        .set_desired_format(surface_format)
-	        .set_desired_present_mode(static_cast<VkPresentModeKHR>(vk::PresentModeKHR::eFifo))
-	        .set_desired_extent(window_extent.width, window_extent.height)
-	        .add_image_usage_flags(static_cast<VkImageUsageFlags>(vk::ImageUsageFlagBits::eTransferDst))
-	        .build();
-
-	if (not builder.has_value()) {
-		LOG_ERROR(logger, "Could not create swapchain: {}", builder.error().message());
-		std::exit(EXIT_FAILURE);
-	}
-	return builder.value();
-}
-
-auto Engine::SwapchainData::makeSwapchainImageViews(vk::raii::Device const& device) -> decltype(imageViews_)
-{
-	return vkbsSwapchain_.get_image_views().value()
-	       | std::views::transform([&device](auto&& image_view) -> vk::raii::ImageView { return {device, image_view}; })
-	       | std::ranges::to<decltype(imageViews_)>();
 }
 } // namespace caldera

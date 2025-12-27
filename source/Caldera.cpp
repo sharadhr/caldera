@@ -7,6 +7,7 @@ module;
 export module Caldera;
 
 export import :Util;
+import :Types;
 import vulkan;
 
 export namespace caldera
@@ -29,10 +30,11 @@ private:
 
 	// Basic engine details
 	std::string name_;
-	std::size_t frameIndex_{};
-	bool renderingPaused_{};
+	std::size_t frameIndex_;
+	bool renderingPaused_;
 	vk::Extent2D windowExtent_;
 
+	// Window to render to
 	using UniqueSDLWindow = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>;
 	auto makeWindow() const -> UniqueSDLWindow;
 	UniqueSDLWindow window_;
@@ -40,7 +42,7 @@ private:
 	// Vulkan basics: RAII context, Vulkan instance, debug messenger
 	auto makeBootstrapInstance() const -> vkb::Instance;
 	vk::raii::Context context_;
-	vkb::Instance vkbsInstance_;
+	vkb::Instance bootstrapInstance_;
 	vk::raii::Instance instance_;
 	vk::raii::DebugUtilsMessengerEXT debugMessenger_;
 
@@ -50,31 +52,15 @@ private:
 
 	// Device-related; requires feature selection
 	auto selectDevice() const -> vkb::PhysicalDevice;
-	vkb::PhysicalDevice vkbsSelectedPhysicalDevice_;
-	vk::raii::PhysicalDevice selectedPhysicalDevice_;
-	vk::raii::Device device_;
+	vkb::PhysicalDevice bootstrapGPU_;
+	vkb::Device bootstrapLogicalDevice_;
+	vk::raii::PhysicalDevice selectedGPU_;
+	vk::raii::Device logicalDevice_;
 
-	// Swapchain data; collects all the swapchain-related stuff together
-	struct SwapchainData
-	{
-		explicit SwapchainData(vk::raii::PhysicalDevice const& selected_physical_device,
-		                       vk::raii::Device const& device,
-		                       vk::raii::SurfaceKHR const& surface,
-		                       vk::Extent2D const& window_extent);
-		vkb::Swapchain vkbsSwapchain_;
-		vk::raii::SwapchainKHR swapchain_;
-		vk::Format swapchainImageFormat_;
-		std::vector<vk::Image> images_;
-		std::vector<vk::raii::ImageView> imageViews_;
-
-	private:
-		static auto makeVkbSwapchain(vk::raii::PhysicalDevice const& selected_physical_device,
-		                             vk::raii::Device const& device,
-		                             vk::raii::SurfaceKHR const& surface,
-		                             vk::Extent2D const& window_extent) -> vkb::Swapchain;
-		auto makeSwapchainImageViews(vk::raii::Device const& device) -> decltype(imageViews_);
-	};
-
+	// Swapchain and frame data
 	SwapchainData swapchainData_;
+	std::uint32_t graphicsQueueFamily_;
+	vk::raii::Queue graphicsQueue_;
+	FrameCommand::TripleBufferedFrames frames_;
 };
 } // namespace caldera

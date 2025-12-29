@@ -18,6 +18,7 @@ struct SwapchainData
 	vk::Format swapchainImageFormat_;
 	std::vector<vk::Image> images_;
 	std::vector<vk::raii::ImageView> imageViews_;
+	std::vector<vk::raii::Semaphore> readyToPresent_;
 
 	explicit SwapchainData(vk::raii::PhysicalDevice const& gpu,
 	                       vk::raii::Device const& logical_device,
@@ -28,7 +29,8 @@ struct SwapchainData
 	    swapchain_{logical_device, bootstrapSwapchain_.swapchain},
 	    swapchainImageFormat_{bootstrapSwapchain_.image_format},
 	    images_{swapchain_.getImages().value},
-	    imageViews_{makeSwapchainImageViews(logical_device)}
+	    imageViews_{makeSwapchainImageViews(logical_device)},
+	    readyToPresent_{makeReadyToPresentSemaphores(logical_device, images_)}
 	{}
 
 private:
@@ -63,6 +65,17 @@ private:
 		           [&device](auto&& image_view) -> vk::raii::ImageView { return {device, image_view}; })
 		       | std::ranges::to<decltype(imageViews_)>();
 	}
+
+	static auto makeReadyToPresentSemaphores(vk::raii::Device const& logical_device,
+	                                         std::vector<vk::Image> const& swapchain_images)
+	    -> std::vector<vk::raii::Semaphore>
+	{
+		auto ready_to_present_semaphores = std::vector<vk::raii::Semaphore>{};
+		ready_to_present_semaphores.reserve(swapchain_images.size());
+		std::ranges::generate_n(std::back_inserter(ready_to_present_semaphores), swapchain_images.size(),
+		                        [&logical_device] { return logical_device.createSemaphore({}).value; });
+		return ready_to_present_semaphores;
+	}
 };
 
 struct FrameCommand
@@ -73,8 +86,7 @@ struct FrameCommand
 	vk::raii::CommandPool commandPool_;
 	vk::raii::CommandBuffer commandBuffer_;
 	vk::raii::Fence renderFence_;
-	vk::raii::Semaphore swapchainSemaphore_;
-	vk::raii::Semaphore renderSemaphore_;
+	vk::raii::Semaphore imageAcquired_;
 
 	explicit FrameCommand(
 	    vk::raii::Device const& logical_device,
@@ -87,10 +99,9 @@ struct FrameCommand
 	                {.commandPool = commandPool_, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1U})
 	            .value.front())},
 	    // One fence to block until device has finished rendering; host will record buffers/do other things
-	    // Two semaphores to synchronise within the swapchain
+	    // Semaphore synchronises 
 	    renderFence_{logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value},
-	    swapchainSemaphore_{logical_device.createSemaphore({}).value},
-	    renderSemaphore_{logical_device.createSemaphore({}).value}
+	    imageAcquired_{logical_device.createSemaphore({}).value}
 	{}
 
 	static auto

@@ -45,8 +45,8 @@ auto Engine::run() -> void
 
 			// pause rendering if minimised or focus lost
 			renderingIsPaused_ = event.type == SDL_WINDOWEVENT
-			                   and (event.window.event == SDL_WINDOWEVENT_MINIMIZED
-			                        or event.window.event == SDL_WINDOWEVENT_FOCUS_LOST);
+			                     and (event.window.event == SDL_WINDOWEVENT_MINIMIZED
+			                          or event.window.event == SDL_WINDOWEVENT_FOCUS_LOST);
 
 			if (event.type == SDL_KEYDOWN) {
 				LOG_INFO(logger, "Key pressed: {}", SDL_GetKeyName(event.key.keysym.sym));
@@ -96,8 +96,8 @@ auto Engine::draw() -> void
 
 		// acquire the swapchain fence, and then get the next image's index
 		LOG_INFO(logger, "Acquiring next image");
-		auto const [result, image_index] = swapchainData_.swapchain_.acquireNextImage(
-		    NANOSECONDS_IN_A_SECOND.count(), getCurrentFrame().swapchainSemaphore_);
+		auto const [result, image_index] = swapchainData_.swapchain_.acquireNextImage(NANOSECONDS_IN_A_SECOND.count(),
+		                                                                              getCurrentFrame().imageAcquired_);
 		check_if_success(result);
 		return {image_index, swapchainData_.images_.at(image_index), swapchainData_.imageViews_.at(image_index)};
 	};
@@ -132,23 +132,25 @@ auto Engine::draw() -> void
 
 	// Prepare to submit...
 	auto const command_submit_info = vk::CommandBufferSubmitInfo{.commandBuffer = cmd_buffer};
-	auto const wait_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().swapchainSemaphore_,
+	auto const wait_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().imageAcquired_,
 	                                               .value = 1,
 	                                               .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput};
-	auto const signal_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().renderSemaphore_,
+	auto const signal_info = vk::SemaphoreSubmitInfo{.semaphore = swapchainData_.readyToPresent_.at(next_image_index),
 	                                                 .value = 1,
 	                                                 .stageMask = vk::PipelineStageFlagBits2::eAllGraphics};
 	auto const submit_info = vk::SubmitInfo2{}
 	                             .setSignalSemaphoreInfos(signal_info)
 	                             .setWaitSemaphoreInfos(wait_info)
 	                             .setCommandBufferInfos(command_submit_info);
+	// Submit the command buffer
 	check_if_success(graphicsQueue_.submit2(submit_info, getCurrentFrame().renderFence_));
 
-	// Prepare to present
+	// Prepare to present...
 	auto const present_info = vk::PresentInfoKHR{}
 	                              .setSwapchains(*swapchainData_.swapchain_)
-	                              .setWaitSemaphores(*getCurrentFrame().renderSemaphore_)
+	                              .setWaitSemaphores(*swapchainData_.readyToPresent_.at(next_image_index))
 	                              .setImageIndices(next_image_index);
+	// Present into the image
 	check_if_success(graphicsQueue_.presentKHR(present_info));
 
 	++frameIndex_;
@@ -252,10 +254,11 @@ auto Engine::selectDevice() const -> vkb::PhysicalDevice
 	    vk::PhysicalDeviceVulkan13Features{}.setDynamicRendering(vk::True).setSynchronization2(vk::True);
 
 	auto const selector = vkb::PhysicalDeviceSelector{bootstrapInstance_}
-	                          .set_minimum_version(1, 3)
-	                          .set_required_features_13(vulkan_13_features)
-	                          .set_required_features_12(vulkan_12_features)
-	                          .set_surface(*surface_);
+	                      .set_minimum_version(1, 3)
+	                      //.add_required_extension(vk::KHRSwapchainMaintenance1ExtensionName)
+	                      .set_required_features_12(vulkan_12_features)
+	                      .set_required_features_13(vulkan_13_features)
+	                      .set_surface(*surface_);
 
 	if (auto maybe_device = selector.select(); not maybe_device.has_value()) {
 		LOG_ERROR(logger, "Could not find a physical device:\n{}", maybe_device.detailed_failure_reasons());

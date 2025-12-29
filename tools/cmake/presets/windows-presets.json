@@ -20,22 +20,6 @@
       ]
     },
     {
-      "name": "windows-clang-msvc",
-      "inherits": [
-        "windows-base"
-      ],
-      "cacheVariables": {
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/clang-msvc.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-clang-static-md",
-        "CMAKE_CXX_MODULE_STD": false
-      },
-      "vendor": {
-        "microsoft.com/VisualStudioSettings/CMake/1.0": {
-          "intelliSenseMode": "windows-clang-x64"
-        }
-      }
-    },
-    {
       "name": "windows-cl",
       "inherits": [
         "windows-base"
@@ -47,6 +31,22 @@
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
           "intelliSenseMode": "windows-msvc-x64"
+        }
+      }
+    },
+    {
+      "name": "windows-clang-msvc",
+      "inherits": [
+        "windows-base"
+      ],
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;ASan;TSan",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/clang-msvc.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-clang-static-md"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "intelliSenseMode": "windows-clang-x64"
         }
       }
     },

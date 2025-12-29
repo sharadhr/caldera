@@ -1,3 +1,4 @@
+add_subdirectory(quill_static)
 add_library(caldera)
 target_sources(caldera
 	PUBLIC FILE_SET public_cxx_modules TYPE CXX_MODULES
@@ -14,7 +15,7 @@ target_sources(caldera
 
 target_link_libraries(caldera PRIVATE
 	efsw::efsw
-	quill::quill
+	QuillStatic
 	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
 	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
 	vk-bootstrap::vk-bootstrap
@@ -26,5 +27,5 @@ add_executable(engine main.cpp)
 target_link_libraries(engine
 	PRIVATE
 		caldera
-		quill::quill
+		QuillStatic
 )

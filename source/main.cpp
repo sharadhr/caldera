@@ -1,6 +1,7 @@
 #include <quill/LogMacros.h>
 
 import Caldera;
+import QuillStatic;
 
 auto main() -> int
 {
@@ -8,5 +9,5 @@ auto main() -> int
 	LOG_INFO(logger, "Starting engine");
 	auto&& engine = caldera::Engine::getInstance(1920, 1080, "caldera");
 	engine.run();
-	LOG_INFO(logger, "ending");
+	LOG_INFO(logger, "Stopping process");
 }

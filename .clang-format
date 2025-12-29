@@ -53,3 +53,4 @@ Cpp11BracedListStyle: true
 InsertNewlineAtEOF: true
 IndentAccessModifiers: false
 IndentExportBlock: false
+AccessModifierOffset: -4

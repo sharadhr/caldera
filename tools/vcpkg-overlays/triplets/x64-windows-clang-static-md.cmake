@@ -4,3 +4,8 @@ set(VCPKG_LIBRARY_LINKAGE static)
 
 set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../../../tools/cmake/toolchains/clang-msvc.cmake")
 set(VCPKG_LOAD_VCVARS_ENV ON)
+
+if(PORT MATCHES "vulkan-validationlayers")
+	# Use MSVC toolchain for building Vulkan Validation Layers
+	set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../../../tools/cmake/toolchains/cl-msvc.cmake")
+endif()

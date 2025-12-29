@@ -1,3 +1,4 @@
+set(SDL2_NO_MWINDOWS ON)
 find_package(argparse CONFIG REQUIRED)
 find_package(directx-dxc CONFIG REQUIRED)
 find_package(directxmath CONFIG REQUIRED)

@@ -1,7 +1,6 @@
 module;
 
-#include "quill/LogMacros.h"
-
+#include <quill/LogMacros.h>
 #include <VkBootstrap.h>
 
 export module Caldera:Types;
@@ -23,8 +22,9 @@ struct SwapchainData
 	explicit SwapchainData(vk::raii::PhysicalDevice const& gpu,
 	                       vk::raii::Device const& logical_device,
 	                       vk::raii::SurfaceKHR const& surface,
+	                       vk::PresentModeKHR const& present_mode,
 	                       vk::Extent2D const& window_extent) :
-	    bootstrapSwapchain_{makeVkbSwapchain(gpu, logical_device, surface, window_extent)},
+	    bootstrapSwapchain_{makeVkbSwapchain(gpu, logical_device, surface, present_mode, window_extent)},
 	    swapchain_{logical_device, bootstrapSwapchain_.swapchain},
 	    swapchainImageFormat_{bootstrapSwapchain_.image_format},
 	    images_{swapchain_.getImages().value},
@@ -35,6 +35,7 @@ private:
 	static auto makeVkbSwapchain(vk::raii::PhysicalDevice const& gpu,
 	                             vk::raii::Device const& device,
 	                             vk::raii::SurfaceKHR const& surface,
+	                             vk::PresentModeKHR const& present_mode,
 	                             vk::Extent2D const& window_extent) -> vkb::Swapchain
 	{
 		constexpr auto surface_format =
@@ -43,7 +44,7 @@ private:
 		auto const builder =
 		    vkb::SwapchainBuilder{*gpu, *device, *surface}
 		        .set_desired_format(surface_format)
-		        .set_desired_present_mode(static_cast<VkPresentModeKHR>(vk::PresentModeKHR::eFifo))
+		        .set_desired_present_mode(static_cast<VkPresentModeKHR>(present_mode))
 		        .set_desired_extent(window_extent.width, window_extent.height)
 		        .add_image_usage_flags(static_cast<VkImageUsageFlags>(vk::ImageUsageFlagBits::eTransferDst))
 		        .build();
@@ -71,9 +72,9 @@ struct FrameCommand
 
 	vk::raii::CommandPool commandPool_;
 	vk::raii::CommandBuffer commandBuffer_;
+	vk::raii::Fence renderFence_;
 	vk::raii::Semaphore swapchainSemaphore_;
 	vk::raii::Semaphore renderSemaphore_;
-	vk::raii::Fence renderFence_;
 
 	explicit FrameCommand(
 	    vk::raii::Device const& logical_device,
@@ -85,9 +86,11 @@ struct FrameCommand
 	            .allocateCommandBuffers(
 	                {.commandPool = commandPool_, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1U})
 	            .value.front())},
+	    // One fence to block until device has finished rendering; host will record buffers/do other things
+	    // Two semaphores to synchronise within the swapchain
+	    renderFence_{logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value},
 	    swapchainSemaphore_{logical_device.createSemaphore({}).value},
-	    renderSemaphore_{logical_device.createSemaphore({}).value},
-	    renderFence_{logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value}
+	    renderSemaphore_{logical_device.createSemaphore({}).value}
 	{}
 
 	static auto

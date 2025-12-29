@@ -9,15 +9,19 @@ module;
 module Caldera;
 
 import :Util;
+import :Images;
 import vk_mem_alloc;
 import vulkan;
 
 using namespace std::literals;
 
 constexpr auto HUNDRED_MILLISECONDS = 100ms;
+constexpr auto NANOSECONDS_IN_A_SECOND = std::chrono::nanoseconds{1s};
 
 namespace caldera
 {
+Engine::~Engine() { check_if_success(logicalDevice_.waitIdle()); }
+
 auto Engine::getInstance(std::uint32_t width, std::uint32_t height, std::string_view name) -> Engine&
 {
 	LOG_INFO(logger, "Statically initialising engine {}; width: {}, height: {}", name, width, height);
@@ -40,7 +44,7 @@ auto Engine::run() -> void
 			to_end = event.type == SDL_QUIT;
 
 			// pause rendering if minimised or focus lost
-			renderingPaused_ = event.type == SDL_WINDOWEVENT
+			renderingIsPaused_ = event.type == SDL_WINDOWEVENT
 			                   and (event.window.event == SDL_WINDOWEVENT_MINIMIZED
 			                        or event.window.event == SDL_WINDOWEVENT_FOCUS_LOST);
 
@@ -50,7 +54,7 @@ auto Engine::run() -> void
 		}
 
 		// Do not draw if minimised or backgrounded
-		if (renderingPaused_) {
+		if (renderingIsPaused_) {
 			std::this_thread::sleep_for(HUNDRED_MILLISECONDS);
 			continue;
 		}
@@ -61,7 +65,7 @@ auto Engine::run() -> void
 Engine::Engine(std::uint32_t const width, std::uint32_t const height, std::string_view const name) :
     name_{name},
     frameIndex_{},
-    renderingPaused_{},
+    renderingIsPaused_{},
     windowExtent_{.width = width, .height = height},
     window_{makeWindow()},
     bootstrapInstance_{makeBootstrapInstance()},
@@ -72,13 +76,83 @@ Engine::Engine(std::uint32_t const width, std::uint32_t const height, std::strin
     bootstrapLogicalDevice_{vkb::DeviceBuilder{bootstrapGPU_}.build().value()},
     selectedGPU_{instance_, bootstrapGPU_.physical_device},
     logicalDevice_{selectedGPU_, bootstrapLogicalDevice_.device},
-    swapchainData_{selectedGPU_, logicalDevice_, surface_, windowExtent_},
+    swapchainData_{selectedGPU_, logicalDevice_, surface_, vk::PresentModeKHR::eFifo, windowExtent_},
     graphicsQueueFamily_{bootstrapLogicalDevice_.get_queue_index(vkb::QueueType::graphics).value()},
     graphicsQueue_{logicalDevice_, bootstrapLogicalDevice_.get_queue(vkb::QueueType::graphics).value()},
     frames_{FrameCommand::makeTripleBufferedFrames(logicalDevice_, graphicsQueueFamily_)}
 {}
 
-auto Engine::draw() -> void { LOG_INFO(logger, "Drawing"); }
+auto Engine::draw() -> void
+{
+	LOG_INFO(logger, "Drawing");
+
+	// get the next image and image view.
+	auto const wait_and_get_next_images = [this] -> std::tuple<unsigned, vk::Image&, vk::raii::ImageView&> {
+		LOG_INFO(logger, "Waiting for and resetting previous fence");
+		// wait for and reset the render fence for the current frame
+		check_if_success(
+		    logicalDevice_.waitForFences(*getCurrentFrame().renderFence_, true, NANOSECONDS_IN_A_SECOND.count()));
+		logicalDevice_.resetFences(*getCurrentFrame().renderFence_);
+
+		// acquire the swapchain fence, and then get the next image's index
+		LOG_INFO(logger, "Acquiring next image");
+		auto const [result, image_index] = swapchainData_.swapchain_.acquireNextImage(
+		    NANOSECONDS_IN_A_SECOND.count(), getCurrentFrame().swapchainSemaphore_);
+		check_if_success(result);
+		return {image_index, swapchainData_.images_.at(image_index), swapchainData_.imageViews_.at(image_index)};
+	};
+
+	auto&& [next_image_index, next_image, next_image_view] = wait_and_get_next_images();
+
+	// Reset the buffer and prime it for recording
+	auto const buffer_after_reset_and_start_recording_once = [this] -> vk::raii::CommandBuffer& {
+		auto&& cmd_buffer = getCurrentFrame().commandBuffer_;
+
+		LOG_INFO(logger, "Resetting command buffer");
+		check_if_success(cmd_buffer.reset());
+		LOG_INFO(logger, "Restarting command buffer");
+		check_if_success(cmd_buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit}));
+		return cmd_buffer;
+	};
+	auto&& cmd_buffer = buffer_after_reset_and_start_recording_once();
+
+	// transition image into writeable mode
+	transition_image(cmd_buffer, next_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+
+	// Clear the image
+	auto const flash_value = vk::ClearColorValue{0.F, 0.F, std::abs(std::sin(frameIndex_ / 120.F)), 0.F};
+	constexpr auto clear_range = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
+	                                                       .levelCount = vk::RemainingMipLevels,
+	                                                       .layerCount = vk::RemainingArrayLayers};
+	cmd_buffer.clearColorImage(next_image, vk::ImageLayout::eGeneral, flash_value, clear_range);
+
+	// transition into presentable state
+	transition_image(cmd_buffer, next_image, vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
+	check_if_success(cmd_buffer.end());
+
+	// Prepare to submit...
+	auto const command_submit_info = vk::CommandBufferSubmitInfo{.commandBuffer = cmd_buffer};
+	auto const wait_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().swapchainSemaphore_,
+	                                               .value = 1,
+	                                               .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput};
+	auto const signal_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().renderSemaphore_,
+	                                                 .value = 1,
+	                                                 .stageMask = vk::PipelineStageFlagBits2::eAllGraphics};
+	auto const submit_info = vk::SubmitInfo2{}
+	                             .setSignalSemaphoreInfos(signal_info)
+	                             .setWaitSemaphoreInfos(wait_info)
+	                             .setCommandBufferInfos(command_submit_info);
+	check_if_success(graphicsQueue_.submit2(submit_info, getCurrentFrame().renderFence_));
+
+	// Prepare to present
+	auto const present_info = vk::PresentInfoKHR{}
+	                              .setSwapchains(*swapchainData_.swapchain_)
+	                              .setWaitSemaphores(*getCurrentFrame().renderSemaphore_)
+	                              .setImageIndices(next_image_index);
+	check_if_success(graphicsQueue_.presentKHR(present_info));
+
+	++frameIndex_;
+}
 
 auto Engine::makeWindow() const -> UniqueSDLWindow
 {
@@ -130,7 +204,7 @@ auto Engine::makeBootstrapInstance() const -> vkb::Instance
 			    return vk::True;
 		    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
 			    LOG_WARNING(logger, format, to_string(debug_message_type), callback_data->pMessage);
-			    return vk::False;
+			    return vk::True;
 		    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
 			    LOG_ERROR(logger, format, to_string(debug_message_type), callback_data->pMessage);
 			    return vk::False;
@@ -138,9 +212,15 @@ auto Engine::makeBootstrapInstance() const -> vkb::Instance
 		    }
 	    }};
 
+#if defined(DEBUG) || defined(_DEBUG) || !defined(NDEBUG)
+	constexpr auto USE_VALIDATION = true;
+#else
+	constexpr auto USE_VALIDATION = false;
+#endif
+
 	if (auto const instance_result = vkb::InstanceBuilder{}
 	                                     .set_app_name(name_.data())
-	                                     .request_validation_layers(USE_VALIDATION)
+	                                     .enable_validation_layers(USE_VALIDATION)
 	                                     .set_debug_callback(debug_callback_raw)
 	                                     .require_api_version(1, 3, 0)
 	                                     .build();
@@ -166,10 +246,10 @@ auto Engine::selectDevice() const -> vkb::PhysicalDevice
 {
 	LOG_INFO(logger, "Selecting GPU");
 
-	constexpr auto vulkan_13_features =
-	    vk::PhysicalDeviceVulkan13Features{}.setDynamicRendering(vk::True).setSynchronization2(vk::True);
 	constexpr auto vulkan_12_features =
 	    vk::PhysicalDeviceVulkan12Features{}.setBufferDeviceAddress(vk::True).setDescriptorIndexing(vk::True);
+	constexpr auto vulkan_13_features =
+	    vk::PhysicalDeviceVulkan13Features{}.setDynamicRendering(vk::True).setSynchronization2(vk::True);
 
 	auto const selector = vkb::PhysicalDeviceSelector{bootstrapInstance_}
 	                          .set_minimum_version(1, 3)
@@ -181,7 +261,10 @@ auto Engine::selectDevice() const -> vkb::PhysicalDevice
 		LOG_ERROR(logger, "Could not find a physical device:\n{}", maybe_device.detailed_failure_reasons());
 		std::exit(EXIT_FAILURE);
 	} else {
+		LOG_INFO(logger, "Selected GPU: {}", maybe_device.value().name);
 		return maybe_device.value();
 	}
 }
+
+auto Engine::getCurrentFrame() -> FrameCommand& { return frames_.at(frameIndex_ % FrameCommand::FRAME_OVERLAP); }
 } // namespace caldera

@@ -6,7 +6,6 @@ module;
 
 export module Caldera;
 
-export import :Util;
 import :Types;
 import vulkan;
 
@@ -14,7 +13,7 @@ export namespace caldera
 {
 struct Engine
 {
-	~Engine() = default;
+	~Engine();
 	Engine(Engine const& other) = delete;
 	Engine(Engine&& other) noexcept = delete;
 	auto operator=(Engine const& other) -> Engine& = delete;
@@ -31,7 +30,7 @@ private:
 	// Basic engine details
 	std::string name_;
 	std::size_t frameIndex_;
-	bool renderingPaused_;
+	bool renderingIsPaused_;
 	vk::Extent2D windowExtent_;
 
 	// Window to render to
@@ -58,6 +57,7 @@ private:
 	vk::raii::Device logicalDevice_;
 
 	// Swapchain and frame data
+	auto getCurrentFrame() -> FrameCommand&;
 	SwapchainData swapchainData_;
 	std::uint32_t graphicsQueueFamily_;
 	vk::raii::Queue graphicsQueue_;

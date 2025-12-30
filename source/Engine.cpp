@@ -95,6 +95,7 @@ auto Engine::draw() -> void
 		logicalDevice_.resetFences(*getCurrentFrame().renderFence_);
 
 		// acquire the swapchain fence, and then get the next image's index
+		// Signal the current frame's semaphore, ensure that commands wait on the same semaphore
 		LOG_INFO(logger, "Acquiring next image");
 		auto const [result, image_index] = swapchainData_.swapchain_.acquireNextImage(NANOSECONDS_IN_A_SECOND.count(),
 		                                                                              getCurrentFrame().imageAcquired_);
@@ -132,9 +133,11 @@ auto Engine::draw() -> void
 
 	// Prepare to submit...
 	auto const command_submit_info = vk::CommandBufferSubmitInfo{.commandBuffer = cmd_buffer};
+	// Submit only after the image has been properly acquired
 	auto const wait_info = vk::SemaphoreSubmitInfo{.semaphore = getCurrentFrame().imageAcquired_,
 	                                               .value = 1,
 	                                               .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput};
+	// Once the submission is complete, signal the ready-to-present semaphore for this image
 	auto const signal_info = vk::SemaphoreSubmitInfo{.semaphore = swapchainData_.readyToPresent_.at(next_image_index),
 	                                                 .value = 1,
 	                                                 .stageMask = vk::PipelineStageFlagBits2::eAllGraphics};
@@ -146,6 +149,7 @@ auto Engine::draw() -> void
 	check_if_success(graphicsQueue_.submit2(submit_info, getCurrentFrame().renderFence_));
 
 	// Prepare to present...
+	// Wait for the current image's semaphore to be ready
 	auto const present_info = vk::PresentInfoKHR{}
 	                              .setSwapchains(*swapchainData_.swapchain_)
 	                              .setWaitSemaphores(*swapchainData_.readyToPresent_.at(next_image_index))

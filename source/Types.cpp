@@ -15,7 +15,7 @@ struct SwapchainData
 {
 	vkb::Swapchain bootstrapSwapchain_;
 	vk::raii::SwapchainKHR swapchain_;
-	vk::Format swapchainImageFormat_;
+	vk::Format imageFormat_;
 	std::vector<vk::Image> images_;
 	std::vector<vk::raii::ImageView> imageViews_;
 	std::vector<vk::raii::Semaphore> readyToPresent_;
@@ -27,7 +27,7 @@ struct SwapchainData
 	                       vk::Extent2D const& window_extent) :
 	    bootstrapSwapchain_{makeVkbSwapchain(gpu, logical_device, surface, present_mode, window_extent)},
 	    swapchain_{logical_device, bootstrapSwapchain_.swapchain},
-	    swapchainImageFormat_{bootstrapSwapchain_.image_format},
+	    imageFormat_{bootstrapSwapchain_.image_format},
 	    images_{swapchain_.getImages().value},
 	    imageViews_{makeSwapchainImageViews(logical_device)},
 	    readyToPresent_{makeReadyToPresentSemaphores(logical_device, images_)}

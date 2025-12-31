@@ -80,7 +80,11 @@ Engine::Engine(std::uint32_t const width, std::uint32_t const height, std::strin
     swapchainData_{selectedGPU_, logicalDevice_, surface_, vk::PresentModeKHR::eFifo, windowExtent_},
     graphicsQueueFamily_{bootstrapLogicalDevice_.get_queue_index(vkb::QueueType::graphics).value()},
     graphicsQueue_{logicalDevice_, bootstrapLogicalDevice_.get_queue(vkb::QueueType::graphics).value()},
-    frames_{FrameCommand::makeTripleBufferedFrames(logicalDevice_, graphicsQueueFamily_)}
+    frames_{FrameCommand::makeTripleBufferedFrames(logicalDevice_, graphicsQueueFamily_)},
+    allocator_{vma::raii::createAllocator(
+                   instance_,
+                   logicalDevice_,
+                   {.flags = vma::AllocatorCreateFlagBits::eBufferDeviceAddress, .physicalDevice = selectedGPU_}).value}
 {}
 
 auto Engine::draw() -> void

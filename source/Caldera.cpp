@@ -7,6 +7,7 @@ module;
 export module Caldera;
 
 import :Types;
+import vk_mem_alloc;
 import vulkan;
 
 export namespace caldera
@@ -62,5 +63,8 @@ private:
 	std::uint32_t graphicsQueueFamily_;
 	vk::raii::Queue graphicsQueue_;
 	FrameCommand::TripleBufferedFrames frames_;
+
+	// Allocator
+	vma::raii::Allocator allocator_;
 };
 } // namespace caldera

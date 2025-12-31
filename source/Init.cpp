@@ -1,4 +1,8 @@
 module Caldera;
 
-namespace caldera
-{}
+import vulkan;
+
+namespace caldera::init
+{
+
+} // namespace caldera::init

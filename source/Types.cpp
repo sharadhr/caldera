@@ -6,6 +6,7 @@ module;
 export module Caldera:Types;
 import :Util;
 
+import vk_mem_alloc;
 import vulkan;
 
 export namespace caldera
@@ -15,6 +16,7 @@ struct SwapchainData
 {
 	vkb::Swapchain bootstrapSwapchain_;
 	vk::raii::SwapchainKHR swapchain_;
+	vk::Extent2D extent_;
 	vk::Format imageFormat_;
 	std::vector<vk::Image> images_;
 	std::vector<vk::raii::ImageView> imageViews_;
@@ -27,6 +29,7 @@ struct SwapchainData
 	                       vk::Extent2D const& window_extent) :
 	    bootstrapSwapchain_{makeVkbSwapchain(gpu, logical_device, surface, present_mode, window_extent)},
 	    swapchain_{logical_device, bootstrapSwapchain_.swapchain},
+	    extent_{window_extent},
 	    imageFormat_{bootstrapSwapchain_.image_format},
 	    images_{swapchain_.getImages().value},
 	    imageViews_{makeSwapchainImageViews(logical_device)},
@@ -73,7 +76,7 @@ private:
 		auto ready_to_present_semaphores = std::vector<vk::raii::Semaphore>{};
 		ready_to_present_semaphores.reserve(swapchain_images.size());
 		std::generate_n(std::back_inserter(ready_to_present_semaphores), swapchain_images.size(),
-		                        [&logical_device] { return logical_device.createSemaphore({}).value; });
+		                [&logical_device] { return logical_device.createSemaphore({}).value; });
 		return ready_to_present_semaphores;
 	}
 };
@@ -99,7 +102,7 @@ struct FrameCommand
 	                {.commandPool = commandPool_, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1U})
 	            .value.front())},
 	    // One fence to block until device has finished rendering; host will record buffers/do other things
-	    // Semaphore synchronises 
+	    // Semaphore synchronises
 	    renderFence_{logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}).value},
 	    imageAcquired_{logical_device.createSemaphore({}).value}
 	{}
@@ -116,5 +119,55 @@ struct FrameCommand
 		return TripleBufferedFrames{make_triple_buffered_frames(), make_triple_buffered_frames(),
 		                            make_triple_buffered_frames()};
 	}
+};
+
+struct AllocatedImage
+{
+	explicit AllocatedImage(vk::Extent3D const& extent,
+	                        vk::Format const& format,
+	                        vk::raii::Device const& logical_device,
+	                        vma::raii::Allocator const& allocator,
+	                        vk::ImageUsageFlags const& image_usage_flags) :
+	    extent_{extent},
+	    format_{format},
+	    image_{allocator
+	               .createImage(
+	                   makeImageCreateInfo(format_, extent_, image_usage_flags),
+	                   {.usage = vma::MemoryUsage::eGpuOnly, .requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal})
+	               .value},
+	    view_{logical_device
+	              .createImageView(
+	                  makeImageViewCreateInfo(format_, *image_, vk::ImageAspectFlagBits::eColor))
+	              .value}
+	{}
+
+	static constexpr auto makeImageCreateInfo(vk::Format const& image_format,
+	                                          vk::Extent3D const& extent,
+	                                          vk::ImageUsageFlags const& usage_flags) -> vk::ImageCreateInfo
+	{
+		return {.imageType = vk::ImageType::e2D,
+		        .format = image_format,
+		        .extent = extent,
+		        .mipLevels = 1U,
+		        .arrayLayers = 1U,
+		        .samples = vk::SampleCountFlagBits::e1,
+		        .tiling = vk::ImageTiling::eOptimal,
+		        .usage = usage_flags};
+	}
+
+	static constexpr auto makeImageViewCreateInfo(vk::Format const& format,
+	                                              vk::Image const& image,
+	                                              vk::ImageAspectFlags const& aspect_flags) -> vk::ImageViewCreateInfo
+	{
+		return {.image = image,
+		        .viewType = vk::ImageViewType::e2D,
+		        .format = format,
+		        .subresourceRange = {.aspectMask = aspect_flags, .levelCount = 1U, .layerCount = 1U}};
+	}
+
+	vk::Extent3D extent_;
+	vk::Format format_;
+	vma::raii::Image image_;
+	vk::raii::ImageView view_;
 };
 } // namespace caldera

@@ -2,7 +2,7 @@ module;
 
 #include <quill/LogMacros.h>
 
-export module Caldera:Util;
+module Caldera:Util;
 
 import vulkan;
 import QuillStatic;

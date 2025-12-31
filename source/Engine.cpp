@@ -10,6 +10,7 @@ module Caldera;
 
 import :Util;
 import :Images;
+
 import vk_mem_alloc;
 import vulkan;
 
@@ -41,15 +42,20 @@ auto Engine::run() -> void
 		// Handle events from queue
 		while (SDL_PollEvent(&event) != 0) {
 			// If user closes window
-			to_end = event.type == SDL_QUIT or event.type == SDL_WINDOWEVENT_CLOSE;
-
-			// pause rendering if minimised or focus lost
-			renderingIsPaused_ = event.type == SDL_WINDOWEVENT
-			                     and (event.window.event == SDL_WINDOWEVENT_MINIMIZED
-			                          or event.window.event == SDL_WINDOWEVENT_FOCUS_LOST);
-
-			if (event.type == SDL_KEYDOWN) {
+			switch (event.type) {
+			case SDL_QUIT:
+				SDL_FALLTHROUGH;
+			case SDL_WINDOWEVENT_CLOSE:
+				to_end = true;
+				break;
+			case SDL_WINDOWEVENT:
+				renderingIsPaused_ =
+				    event.window.event == SDL_WINDOWEVENT_MINIMIZED or event.window.event == SDL_WINDOWEVENT_FOCUS_LOST;
+				break;
+			case SDL_KEYDOWN:
 				LOG_INFO(logger, "Key pressed: {}", SDL_GetKeyName(event.key.keysym.sym));
+				break;
+			default:;
 			}
 		}
 
@@ -84,7 +90,15 @@ Engine::Engine(std::uint32_t const width, std::uint32_t const height, std::strin
     allocator_{vma::raii::createAllocator(
                    instance_,
                    logicalDevice_,
-                   {.flags = vma::AllocatorCreateFlagBits::eBufferDeviceAddress, .physicalDevice = selectedGPU_}).value}
+                   {.flags = vma::AllocatorCreateFlagBits::eBufferDeviceAddress, .physicalDevice = selectedGPU_})
+                   .value},
+    drawImage_{{windowExtent_.width, windowExtent_.height, 1U},
+               vk::Format::eR16G16B16A16Sfloat,
+               logicalDevice_,
+               allocator_,
+               vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
+                   | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment}
+// Copy to and fro, storage for compute shader write, and colour attachment for graphics pipeline geometry
 {}
 
 auto Engine::draw() -> void
@@ -108,7 +122,7 @@ auto Engine::draw() -> void
 		return {image_index, swapchainData_.images_.at(image_index), swapchainData_.imageViews_.at(image_index)};
 	};
 
-	auto&& [next_image_index, next_image, next_image_view] = wait_and_get_next_images();
+	auto&& [next_image_index, next_swapchain_image, next_image_view] = wait_and_get_next_images();
 
 	// Reset the buffer and prime it for recording
 	auto const buffer_after_reset_and_start_recording_once = [this] -> vk::raii::CommandBuffer& {
@@ -121,20 +135,25 @@ auto Engine::draw() -> void
 		return cmd_buffer;
 	};
 	auto&& cmd_buffer = buffer_after_reset_and_start_recording_once();
+	
+	drawExtent_ = {drawImage_.extent_.width, drawImage_.extent_.height};
+	
+	// Transition draw image to write into it
+	transitionImage(cmd_buffer, *drawImage_.image_, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+	
+	drawBackground(cmd_buffer);
 
-	// transition image into writeable mode
-	transitionImage(cmd_buffer, next_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
-
-	// Clear the image
-	auto const flash_value =
-	    vk::ClearColorValue{0.F, 0.F, std::abs(std::sin(static_cast<float>(frameIndex_) / 120.F)), 0.F};
-	constexpr auto clear_range = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
-	                                                       .levelCount = vk::RemainingMipLevels,
-	                                                       .layerCount = vk::RemainingArrayLayers};
-	cmd_buffer.clearColorImage(next_image, vk::ImageLayout::eGeneral, flash_value, clear_range);
-
-	// transition into presentable state
-	transitionImage(cmd_buffer, next_image, vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
+	// Transition draw and swapchain images into correct transfer layouts
+	transitionImage(cmd_buffer, *drawImage_.image_, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+	transitionImage(cmd_buffer, next_swapchain_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	
+	// Copy from draw_image to swapchain image
+	blitImage(cmd_buffer, *drawImage_.image_, drawExtent_, next_swapchain_image, swapchainData_.extent_);
+	
+	// Set swapchain image layout to present so it can be displayed
+	transitionImage(cmd_buffer, next_swapchain_image, vk::ImageLayout::eTransferDstOptimal,
+	                vk::ImageLayout::ePresentSrcKHR);
+	
 	check_if_success(cmd_buffer.end());
 
 	// Prepare to submit...
@@ -164,6 +183,17 @@ auto Engine::draw() -> void
 	check_if_success(graphicsQueue_.presentKHR(present_info));
 
 	++frameIndex_;
+}
+
+auto Engine::drawBackground(vk::raii::CommandBuffer const& cmd_buffer) -> void
+{
+	// Clear the image
+	auto const flash_value =
+	    vk::ClearColorValue{0.F, 0.F, std::abs(std::sin(static_cast<float>(frameIndex_) / 120.F)), 0.F};
+	constexpr auto clear_range = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
+	                                                       .levelCount = vk::RemainingMipLevels,
+	                                                       .layerCount = vk::RemainingArrayLayers};
+	cmd_buffer.clearColorImage(*drawImage_.image_, vk::ImageLayout::eGeneral, flash_value, clear_range);
 }
 
 auto Engine::makeWindow() const -> UniqueSDLWindow
@@ -220,7 +250,8 @@ auto Engine::makeBootstrapInstance() const -> vkb::Instance
 		    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
 			    LOG_ERROR(logger, format, to_string(debug_message_type), callback_data->pMessage);
 			    return vk::False;
-		    default: std::unreachable();
+		    default:
+			    std::unreachable();
 		    }
 	    }};
 

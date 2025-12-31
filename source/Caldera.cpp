@@ -27,6 +27,7 @@ private:
 	explicit Engine(std::uint32_t width, std::uint32_t height, std::string_view name);
 
 	auto draw() -> void;
+	auto drawBackground(vk::raii::CommandBuffer const& cmd_buffer) -> void;
 
 	// Basic engine details
 	std::string name_;
@@ -66,5 +67,9 @@ private:
 
 	// Allocator
 	vma::raii::Allocator allocator_;
+	
+	// Draw resources
+	AllocatedImage drawImage_;
+	vk::Extent2D drawExtent_;
 };
 } // namespace caldera

@@ -72,7 +72,7 @@ private:
 	{
 		auto ready_to_present_semaphores = std::vector<vk::raii::Semaphore>{};
 		ready_to_present_semaphores.reserve(swapchain_images.size());
-		std::ranges::generate_n(std::back_inserter(ready_to_present_semaphores), swapchain_images.size(),
+		std::generate_n(std::back_inserter(ready_to_present_semaphores), swapchain_images.size(),
 		                        [&logical_device] { return logical_device.createSemaphore({}).value; });
 		return ready_to_present_semaphores;
 	}

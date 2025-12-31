@@ -9,7 +9,7 @@ import QuillStatic;
 
 namespace caldera
 {
-auto transition_image(vk::raii::CommandBuffer const& cmd_buffer,
+auto transitionImage(vk::raii::CommandBuffer const& cmd_buffer,
                       vk::Image const& image,
                       vk::ImageLayout const old_layout,
                       vk::ImageLayout const new_layout) -> void

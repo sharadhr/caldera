@@ -41,7 +41,7 @@ auto Engine::run() -> void
 		// Handle events from queue
 		while (SDL_PollEvent(&event) != 0) {
 			// If user closes window
-			to_end = event.type == SDL_QUIT;
+			to_end = event.type == SDL_QUIT or event.type == SDL_WINDOWEVENT_CLOSE;
 
 			// pause rendering if minimised or focus lost
 			renderingIsPaused_ = event.type == SDL_WINDOWEVENT
@@ -55,6 +55,7 @@ auto Engine::run() -> void
 
 		// Do not draw if minimised or backgrounded
 		if (renderingIsPaused_) {
+			LOG_INFO(logger, "Rendering paused; sleeping for {} ms", HUNDRED_MILLISECONDS.count());
 			std::this_thread::sleep_for(HUNDRED_MILLISECONDS);
 			continue;
 		}
@@ -118,17 +119,18 @@ auto Engine::draw() -> void
 	auto&& cmd_buffer = buffer_after_reset_and_start_recording_once();
 
 	// transition image into writeable mode
-	transition_image(cmd_buffer, next_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+	transitionImage(cmd_buffer, next_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
 
 	// Clear the image
-	auto const flash_value = vk::ClearColorValue{0.F, 0.F, std::abs(std::sin(frameIndex_ / 120.F)), 0.F};
+	auto const flash_value =
+	    vk::ClearColorValue{0.F, 0.F, std::abs(std::sin(static_cast<float>(frameIndex_) / 120.F)), 0.F};
 	constexpr auto clear_range = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
 	                                                       .levelCount = vk::RemainingMipLevels,
 	                                                       .layerCount = vk::RemainingArrayLayers};
 	cmd_buffer.clearColorImage(next_image, vk::ImageLayout::eGeneral, flash_value, clear_range);
 
 	// transition into presentable state
-	transition_image(cmd_buffer, next_image, vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
+	transitionImage(cmd_buffer, next_image, vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
 	check_if_success(cmd_buffer.end());
 
 	// Prepare to submit...
@@ -194,7 +196,7 @@ auto Engine::makeBootstrapInstance() const -> vkb::Instance
 {
 	LOG_INFO(logger, "Creating bootstrap instance");
 
-	static constexpr auto debug_callback_raw = PFN_vkDebugUtilsMessengerCallbackEXT{
+	static constexpr auto raw_debug_callback = PFN_vkDebugUtilsMessengerCallbackEXT{
 	    [](VkDebugUtilsMessageSeverityFlagBitsEXT const severity, VkDebugUtilsMessageTypeFlagsEXT const type,
 	       VkDebugUtilsMessengerCallbackDataEXT const* callback_data, [[maybe_unused]] void* data) -> vk::Bool32 {
 		    static constexpr auto format = "[Vulkan: {}] : {}";
@@ -227,7 +229,7 @@ auto Engine::makeBootstrapInstance() const -> vkb::Instance
 	if (auto const instance_result = vkb::InstanceBuilder{}
 	                                     .set_app_name(name_.data())
 	                                     .enable_validation_layers(USE_VALIDATION)
-	                                     .set_debug_callback(debug_callback_raw)
+	                                     .set_debug_callback(raw_debug_callback)
 	                                     .require_api_version(1, 3, 0)
 	                                     .build();
 	    not instance_result) {
@@ -240,7 +242,7 @@ auto Engine::makeBootstrapInstance() const -> vkb::Instance
 
 auto Engine::makeSDLSurface() const -> vk::raii::SurfaceKHR
 {
-	auto raw_surface = VkSurfaceKHR{};
+	auto* raw_surface = VkSurfaceKHR{};
 	if (SDL_Vulkan_CreateSurface(window_.get(), *instance_, &raw_surface) != SDL_TRUE) {
 		LOG_ERROR(logger, "SDL surface was not created: {}", SDL_GetError());
 		std::exit(EXIT_FAILURE);
@@ -258,11 +260,11 @@ auto Engine::selectDevice() const -> vkb::PhysicalDevice
 	    vk::PhysicalDeviceVulkan13Features{}.setDynamicRendering(vk::True).setSynchronization2(vk::True);
 
 	auto const selector = vkb::PhysicalDeviceSelector{bootstrapInstance_}
-	                      .set_minimum_version(1, 3)
-	                      //.add_required_extension(vk::KHRSwapchainMaintenance1ExtensionName)
-	                      .set_required_features_12(vulkan_12_features)
-	                      .set_required_features_13(vulkan_13_features)
-	                      .set_surface(*surface_);
+	                          .set_minimum_version(1, 3)
+	                          //.add_required_extension(vk::KHRSwapchainMaintenance1ExtensionName)
+	                          .set_required_features_12(vulkan_12_features)
+	                          .set_required_features_13(vulkan_13_features)
+	                          .set_surface(*surface_);
 
 	if (auto maybe_device = selector.select(); not maybe_device.has_value()) {
 		LOG_ERROR(logger, "Could not find a physical device:\n{}", maybe_device.detailed_failure_reasons());

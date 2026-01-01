@@ -16,6 +16,7 @@ target_link_libraries(VulkanHppModule PUBLIC Vulkan::Headers)
 target_compile_definitions(VulkanHppModule PUBLIC
 	VULKAN_HPP_NO_EXCEPTIONS
 	VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
+	VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
 )
 
 add_library(VulkanMemoryAllocatorHppModule)

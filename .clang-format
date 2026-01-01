@@ -1,7 +1,7 @@
 ---
 BasedOnStyle: LLVM
 AlignAfterOpenBracket: Align
-AllowShortCaseLabelsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
 AlignConsecutiveShortCaseStatements:
   Enabled: true
   AcrossComments: true

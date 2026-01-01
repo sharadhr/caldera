@@ -3,13 +3,13 @@ module;
 #include <quill/LogMacros.h>
 #include <VkBootstrap.h>
 
-export module Caldera:Types;
+module Caldera:Types;
 import :Util;
 
 import vk_mem_alloc;
 import vulkan;
 
-export namespace caldera
+namespace caldera
 {
 // Swapchain data; collects all the swapchain-related stuff together
 struct SwapchainData
@@ -123,6 +123,11 @@ struct FrameCommand
 
 struct AllocatedImage
 {
+	vk::Extent3D extent_;
+	vk::Format format_;
+	vma::raii::Image image_;
+	vk::raii::ImageView view_;
+
 	explicit AllocatedImage(vk::Extent3D const& extent,
 	                        vk::Format const& format,
 	                        vk::raii::Device const& logical_device,
@@ -135,12 +140,11 @@ struct AllocatedImage
 	                   makeImageCreateInfo(format_, extent_, image_usage_flags),
 	                   {.usage = vma::MemoryUsage::eGpuOnly, .requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal})
 	               .value},
-	    view_{logical_device
-	              .createImageView(
-	                  makeImageViewCreateInfo(format_, *image_, vk::ImageAspectFlagBits::eColor))
+	    view_{logical_device.createImageView(makeImageViewCreateInfo(format_, *image_, vk::ImageAspectFlagBits::eColor))
 	              .value}
 	{}
 
+private:
 	static constexpr auto makeImageCreateInfo(vk::Format const& image_format,
 	                                          vk::Extent3D const& extent,
 	                                          vk::ImageUsageFlags const& usage_flags) -> vk::ImageCreateInfo
@@ -164,10 +168,5 @@ struct AllocatedImage
 		        .format = format,
 		        .subresourceRange = {.aspectMask = aspect_flags, .levelCount = 1U, .layerCount = 1U}};
 	}
-
-	vk::Extent3D extent_;
-	vk::Format format_;
-	vma::raii::Image image_;
-	vk::raii::ImageView view_;
 };
 } // namespace caldera

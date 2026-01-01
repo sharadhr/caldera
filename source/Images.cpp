@@ -44,6 +44,7 @@ auto blitImage(vk::raii::CommandBuffer const& cmd_buffer,
                vk::Extent2D const destination_extent)
 {
 	auto const blit_region =
+		// WTF, C++?
 	    vk::ImageBlit2{.srcSubresource = {.aspectMask = vk::ImageAspectFlagBits::eColor, .layerCount = 1},
 	                   .srcOffsets = {{{{},
 	                                    {.x = static_cast<int32_t>(source_extent.width),

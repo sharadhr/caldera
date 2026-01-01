@@ -6,7 +6,16 @@ module;
 
 export module Caldera;
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wimport-implementation-partition-unit-in-interface-unit"
+#endif
+import :Descriptors;
 import :Types;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
 import vk_mem_alloc;
 import vulkan;
 
@@ -27,7 +36,7 @@ private:
 	explicit Engine(std::uint32_t width, std::uint32_t height, std::string_view name);
 
 	auto draw() -> void;
-	auto drawBackground(vk::raii::CommandBuffer const& cmd_buffer) -> void;
+	auto drawBackground(vk::raii::CommandBuffer const& cmd_buffer) const -> void;
 
 	// Basic engine details
 	std::string name_;
@@ -71,5 +80,10 @@ private:
 	// Draw resources
 	AllocatedImage drawImage_;
 	vk::Extent2D drawExtent_;
+	
+	// Descriptors
+	DescriptorAllocator globalDescriptorAllocator_;
+	vk::raii::DescriptorSetLayout drawImageDescriptorLayout_;
+	std::vector<vk::raii::DescriptorSet> drawImageDescriptors_;
 };
 } // namespace caldera

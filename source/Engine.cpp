@@ -96,10 +96,25 @@ Engine::Engine(std::uint32_t const width, std::uint32_t const height, std::strin
                vk::Format::eR16G16B16A16Sfloat,
                logicalDevice_,
                allocator_,
-               vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
-                   | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment}
-// Copy to and fro, storage for compute shader write, and colour attachment for graphics pipeline geometry
-{}
+               vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst // Copy to and fro,
+                   | vk::ImageUsageFlagBits::eStorage           // storage for compute shader write,
+                   | vk::ImageUsageFlagBits::eColorAttachment}, // and colour attachment for graphics pipeline geometry
+    globalDescriptorAllocator_{
+        logicalDevice_, 10U,
+        std::array<DescriptorAllocator::PoolSizeRatio, 1>{{{vk::DescriptorType::eStorageImage, 1}}}},
+    drawImageDescriptorLayout_{DescriptorLayoutBuilder{}
+                                   .addBinding(0U, vk::DescriptorType::eStorageImage)
+                                   .build(logicalDevice_, vk::ShaderStageFlagBits::eCompute)},
+    drawImageDescriptors_{globalDescriptorAllocator_.allocate(logicalDevice_, drawImageDescriptorLayout_)}
+{
+	auto const image_info =
+	    vk::DescriptorImageInfo{.imageView = drawImage_.view_, .imageLayout = vk::ImageLayout::eGeneral};
+	logicalDevice_.updateDescriptorSets({vk::WriteDescriptorSet{.dstSet = drawImageDescriptors_.front(),
+	                                                            .descriptorCount = 1U,
+	                                                            .descriptorType = vk::DescriptorType::eStorageImage}
+	                                         .setImageInfo(image_info)},
+	                                    {});
+}
 
 auto Engine::draw() -> void
 {
@@ -135,25 +150,26 @@ auto Engine::draw() -> void
 		return cmd_buffer;
 	};
 	auto&& cmd_buffer = buffer_after_reset_and_start_recording_once();
-	
+
 	drawExtent_ = {drawImage_.extent_.width, drawImage_.extent_.height};
-	
+
 	// Transition draw image to write into it
 	transitionImage(cmd_buffer, *drawImage_.image_, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
-	
+
 	drawBackground(cmd_buffer);
 
 	// Transition draw and swapchain images into correct transfer layouts
 	transitionImage(cmd_buffer, *drawImage_.image_, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
-	transitionImage(cmd_buffer, next_swapchain_image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	
+	transitionImage(cmd_buffer, next_swapchain_image, vk::ImageLayout::eUndefined,
+	                vk::ImageLayout::eTransferDstOptimal);
+
 	// Copy from draw_image to swapchain image
 	blitImage(cmd_buffer, *drawImage_.image_, drawExtent_, next_swapchain_image, swapchainData_.extent_);
-	
+
 	// Set swapchain image layout to present so it can be displayed
 	transitionImage(cmd_buffer, next_swapchain_image, vk::ImageLayout::eTransferDstOptimal,
 	                vk::ImageLayout::ePresentSrcKHR);
-	
+
 	check_if_success(cmd_buffer.end());
 
 	// Prepare to submit...
@@ -185,7 +201,7 @@ auto Engine::draw() -> void
 	++frameIndex_;
 }
 
-auto Engine::drawBackground(vk::raii::CommandBuffer const& cmd_buffer) -> void
+auto Engine::drawBackground(vk::raii::CommandBuffer const& cmd_buffer) const -> void
 {
 	// Clear the image
 	auto const flash_value =

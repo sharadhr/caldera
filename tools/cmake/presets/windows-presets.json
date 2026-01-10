@@ -25,6 +25,7 @@
         "windows-base"
       ],
       "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "23",
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/cl-msvc.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-windows-static-md"
       },

@@ -14,9 +14,11 @@ target_sources(VulkanHppModule PUBLIC
 target_compile_features(VulkanHppModule PUBLIC cxx_std_23)
 target_link_libraries(VulkanHppModule PUBLIC Vulkan::Headers)
 target_compile_definitions(VulkanHppModule PUBLIC
+	VULKAN_HPP_CXX_MODULE_EXPERIMENTAL_WARNING
 	VULKAN_HPP_NO_EXCEPTIONS
 	VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 	VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
+	VULKAN_HPP_USE_STD_EXPECTED
 )
 
 add_library(VulkanMemoryAllocatorHppModule)

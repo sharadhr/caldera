@@ -7,3 +7,7 @@ set(VCPKG_LOAD_VCVARS_ENV ON)
 set(VCPKG_CMAKE_SYSTEM_NAME MinGW)
 
 set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../../../tools/cmake/toolchains/clang-mingw.cmake")
+
+if(PORT MATCHES "vulkan-validationlayers")
+    set(VCPKG_DISABLE_COMPILER_TRACKING ON)
+endif()

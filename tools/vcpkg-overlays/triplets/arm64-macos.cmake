@@ -8,3 +8,7 @@ set(VCPKG_BUILD_TYPE release)
 set(VCPKG_FIXUP_MACHO_RPATH ON)
 
 set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../../../tools/cmake/toolchains/clang-macos.cmake")
+
+if(PORT MATCHES "vulkan-validationlayers")
+    set(VCPKG_DISABLE_COMPILER_TRACKING ON)
+endif()

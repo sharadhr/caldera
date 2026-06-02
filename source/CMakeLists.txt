@@ -1,19 +1,4 @@
-add_subdirectory(quill_static)
 add_library(caldera)
-target_sources(caldera
-	PUBLIC FILE_SET public_cxx_modules TYPE CXX_MODULES
-	FILES
-		Caldera.cpp
-		Descriptors.cpp
-		Types.cpp
-		Util.cpp
-	PRIVATE FILE_SET private_cxx_modules TYPE CXX_MODULES
-	FILES
-		Images.cpp
-	PRIVATE 
-		Engine.cpp
-		Init.cpp
-)
 
 target_link_libraries(caldera PRIVATE
 	efsw::efsw
@@ -26,8 +11,3 @@ target_link_libraries(caldera PRIVATE
 )
 
 add_executable(engine main.cpp)
-target_link_libraries(engine
-	PRIVATE
-		caldera
-		QuillStatic
-)

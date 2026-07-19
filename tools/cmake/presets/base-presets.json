@@ -18,18 +18,18 @@
       },
       "errors": {
         "dev": false,
-        "deprecated": true
+        "deprecated": false
       }
     },
     {
       "name": "cmake-experimental",
       "hidden": true,
       "cacheVariables": {
+        "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD": "f35a9ac6-8463-4d38-8eec-5d6008153e7d",
+        "CMAKE_EXPERIMENTAL_EXPORT_BUILD_DATABASE": "70ef007e-b743-492d-9407-e35eeac03a40",
         "CMAKE_EXPERIMENTAL_EXPORT_PACKAGE_DEPENDENCIES": "1942b4fa-b2c5-4546-9385-83f254070067",
-        "CMAKE_EXPERIMENTAL_EXPORT_PACKAGE_INFO": "b80be207-778e-46ba-8080-b23bba22639e",
         "CMAKE_EXPERIMENTAL_FIND_CPS_PACKAGES": "e82e467b-f997-4464-8ace-b00808fff261",
-        "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD": "d0edc3af-4c50-42ea-a356-e2862fe7a444",
-        "CMAKE_EXPERIMENTAL_EXPORT_BUILD_DATABASE": "73194a1d-c0b5-41b9-9190-a4512925e192"
+        "CMAKE_EXPERIMENTAL_MAPPED_PACKAGE_INFO": "ababa1b5-7099-495f-a9cd-e22d38f274f2"
       }
     },
     {
@@ -59,6 +59,7 @@
       "cacheVariables": {
         "CMAKE_EXPORT_BUILD_DATABASE": true,
         "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+        "CMAKE_EXPORT_SARIF": true,
         "CMAKE_COLOR_DIAGNOSTICS": true,
         "CMAKE_CXX_MODULE_STD": true,
         "CMAKE_CXX_STANDARD": "26",

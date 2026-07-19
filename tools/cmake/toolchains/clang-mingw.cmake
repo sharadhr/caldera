@@ -85,11 +85,6 @@ string(JOIN " " TSAN_FLAGS
 	"-fsanitize=thread,undefined"
 )
 
-string(JOIN " " LTO_FLAGS
-	"-march=native"
-	"-flto=thin"
-)
-
 set(FLAG_TYPES "C" "CXX")
 foreach (CONFIG "ASAN" "TSAN")
 	foreach (FLAG_TYPE ${FLAG_TYPES})
@@ -101,11 +96,3 @@ endforeach ()
 # Set the default flags for normal build types
 set(CMAKE_C_FLAGS_INIT ${WARNING_FLAGS})
 set(CMAKE_CXX_FLAGS_INIT ${WARNING_FLAGS})
-set(CMAKE_EXE_LINKER_FLAGS_INIT ${LINKER_FLAGS})
-set(CMAKE_SHARED_LINKER_FLAGS_INIT ${LINKER_FLAGS})
-
-# For release, which is LTOed
-set(CMAKE_C_FLAGS_RELEASE_INIT ${LTO_FLAGS})
-set(CMAKE_CXX_FLAGS_RELEASE_INIT ${LTO_FLAGS})
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT "-flto=thin")
-set(CMAKE_SHARED_LINKER_FLAGS_RELEASE_INIT "-flto=thin")

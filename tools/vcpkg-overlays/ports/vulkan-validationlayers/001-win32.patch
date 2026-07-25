@@ -1,0 +1,128 @@
+commit 815cdd33c5c3293e8ff60fc8cd6047a24efa2200
+Author: Sharadh Rajaraman <r.sharadh@outlook.sg>
+Date:   2026-07-11 00:38:25 +0100
+
+    build: Replace `WIN32` with `_WIN32`
+    
+    The standard platform macro to detect Windows is `_WIN32` with the
+    underscore prefix.
+
+diff --git a/layers/layer_options.cpp b/layers/layer_options.cpp
+index db1f223f1..e805c7892 100644
+--- a/layers/layer_options.cpp
++++ b/layers/layer_options.cpp
+@@ -671,10 +671,10 @@ static void ProcessDebugReportSettings(ConfigAndEnvSettings* settings_data, VkuL
+ 
+     // Default
+     std::vector<std::string> debug_actions_list = {"VK_DBG_LAYER_ACTION_DEFAULT", "VK_DBG_LAYER_ACTION_LOG_MSG"};
+-#ifdef WIN32
++#ifdef _WIN32
+     // For Windows, enable message logging AND OutputDebugString
+     debug_actions_list.push_back("VK_DBG_LAYER_ACTION_DEBUG_OUTPUT");
+-#endif  // WIN32
++#endif  // _WIN32
+ 
+     if (vkuHasLayerSetting(layer_setting_set, VK_LAYER_DEBUG_ACTION)) {
+         vkuGetLayerSettingValues(layer_setting_set, VK_LAYER_DEBUG_ACTION, debug_actions_list);
+@@ -972,12 +972,12 @@ void ProcessConfigAndEnvSettings(ConfigAndEnvSettings* settings_data) {
+     dbg_create_info.pUserData = (void*)log_output;
+     LayerCreateMessengerCallback(settings_data->debug_report, true, &dbg_create_info, &messenger);
+ 
+-#ifdef WIN32
++#ifdef _WIN32
+     messenger = VK_NULL_HANDLE;
+     dbg_create_info.pfnUserCallback = MessengerWin32DebugOutputMsg;
+     dbg_create_info.pUserData = nullptr;
+     LayerCreateMessengerCallback(settings_data->debug_report, true, &dbg_create_info, &messenger);
+-#endif  // WIN32
++#endif  // _WIN32
+ 
+     return;
+ #else
+diff --git a/layers/utils/math_utils.h b/layers/utils/math_utils.h
+index 0c777acb0..522fd665e 100644
+--- a/layers/utils/math_utils.h
++++ b/layers/utils/math_utils.h
+@@ -25,7 +25,7 @@
+ #include <limits>
+ #include <type_traits>
+ 
+-#ifdef WIN32
++#ifdef _WIN32
+ #include <intrin.h>  // For __lzcnt()
+ #else
+ #include <strings.h>  // For ffs()
+@@ -91,7 +91,7 @@ static inline small_vector<uint8_t, 8> GetSetBitIndices(uint32_t value) {
+ }
+ 
+ static inline int u_ffs(int val) {
+-#ifdef WIN32
++#ifdef _WIN32
+     unsigned long bit_pos = 0;
+     if (_BitScanForward(&bit_pos, val) != 0) {
+         bit_pos += 1;
+diff --git a/layers/vk_layer_config.cpp b/layers/vk_layer_config.cpp
+index be385c162..b60c0db71 100644
+--- a/layers/vk_layer_config.cpp
++++ b/layers/vk_layer_config.cpp
+@@ -99,7 +99,7 @@ void SetEnvironment(const char* variable, const char* value) {
+ #endif
+ }
+ 
+-#if defined(WIN32)
++#if defined(_WIN32)
+ // Check for admin rights
+ static inline bool IsHighIntegrity() {
+     HANDLE process_token;
+diff --git a/layers/vulkan/generated/vk_function_pointers.cpp b/layers/vulkan/generated/vk_function_pointers.cpp
+index ae7cf9393..1b81c4271 100644
+--- a/layers/vulkan/generated/vk_function_pointers.cpp
++++ b/layers/vulkan/generated/vk_function_pointers.cpp
+@@ -973,7 +973,7 @@ PFN_vkCmdDrawMeshTasksIndirectCountEXT CmdDrawMeshTasksIndirectCountEXT;
+ 
+ void InitCore(const char *api_name) {
+ 
+-#if defined(WIN32)
++#if defined(_WIN32)
+     std::string filename = std::string(api_name) + "-1.dll";
+     auto lib_handle = open_library(filename.c_str());
+ #elif(__APPLE__)
+diff --git a/scripts/generators/function_pointers_generator.py b/scripts/generators/function_pointers_generator.py
+index 98e547872..495127c9a 100644
+--- a/scripts/generators/function_pointers_generator.py
++++ b/scripts/generators/function_pointers_generator.py
+@@ -163,7 +163,7 @@ namespace vk {
+         out.append('''
+ void InitCore(const char *api_name) {
+ 
+-#if defined(WIN32)
++#if defined(_WIN32)
+     std::string filename = std::string(api_name) + "-1.dll";
+     auto lib_handle = open_library(filename.c_str());
+ #elif(__APPLE__)
+diff --git a/tests/unit/instanceless.cpp b/tests/unit/instanceless.cpp
+index 876c82be2..de7d7ac3c 100644
+--- a/tests/unit/instanceless.cpp
++++ b/tests/unit/instanceless.cpp
+@@ -224,7 +224,7 @@ void VKAPI_PTR DummyFree(void*, void* pMemory) {
+ // allocated during vkCreateInstance lives in a different 'heap'. Trying to free it from the application with the
+ // DummyFree callbacks will crash the application. The goal of this change is to enable Leak Sanitizer to run on
+ // CI runs in linux, so leaking memory in the windows tests is okay.
+-#if !defined(WIN32)
++#if !defined(_WIN32)
+     std::free(pMemory);
+ #endif
+ }
+diff --git a/tests/unit/layer_settings.cpp b/tests/unit/layer_settings.cpp
+index ff8182094..748256c3e 100644
+--- a/tests/unit/layer_settings.cpp
++++ b/tests/unit/layer_settings.cpp
+@@ -452,7 +452,7 @@ TEST_F(NegativeLayerSettings, ReportFlags3) {
+     Monitor().VerifyFound();
+ }
+ 
+-#ifndef WIN32
++#ifndef _WIN32
+ TEST_F(NegativeLayerSettings, LogFilename) {
+     const char* path[] = {"/fake/path"};
+     const VkLayerSettingEXT setting = {OBJECT_LAYER_NAME, "log_filename", VK_LAYER_SETTING_TYPE_STRING_EXT, 1, path};

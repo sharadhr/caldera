@@ -38,15 +38,14 @@ InsertBraces: true
 PointerAlignment: Left
 QualifierAlignment: Custom
 QualifierOrder: [ static, constexpr, inline, volatile, type, const ]
-IndentWidth: 4
-TabWidth: 4
-UseTab: ForIndentation
+TabWidth: 2
+UseTab: AlignWithSpaces
 SeparateDefinitionBlocks: Always
 PackConstructorInitializers: NextLine
 BreakBeforeBinaryOperators: NonAssignment
-ContinuationIndentWidth: 4
+ContinuationIndentWidth: 2
 BreakConstructorInitializers: AfterColon
-ConstructorInitializerIndentWidth: 4
+ConstructorInitializerIndentWidth: 2
 SortIncludes: CaseInsensitive
 AllowAllArgumentsOnNextLine: false
 Cpp11BracedListStyle: true

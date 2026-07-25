@@ -36,14 +36,13 @@
       }
     },
     {
-      "name": "windows-clang-msvc",
+      "name": "windows-clang-base",
+      "hidden": true,
       "inherits": [
         "windows-base"
       ],
       "cacheVariables": {
-        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;ASan;TSan",
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/clang-msvc.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-clang-static-md"
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;ASan"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -52,19 +51,24 @@
       }
     },
     {
+      "name": "windows-clang-msvc",
+      "inherits": [
+        "windows-clang-base"
+      ],
+      "cacheVariables": {
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/clang-msvc.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-clang-static-md"
+      }
+    },
+    {
       "name": "windows-clang-mingw",
       "inherits": [
-        "windows-base"
+        "windows-clang-base"
       ],
       "cacheVariables": {
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release;ASan;TSan",
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/clang-mingw.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static"
-      },
-      "vendor": {
-        "microsoft.com/VisualStudioSettings/CMake/1.0": {
-          "intelliSenseMode": "windows-clang-x64"
-        }
       }
     }
   ]

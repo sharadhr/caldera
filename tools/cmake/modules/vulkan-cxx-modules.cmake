@@ -1,3 +1,5 @@
+include_guard(GLOBAL)
+
 find_package(Vulkan REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator-Hpp CONFIG REQUIRED)
@@ -7,7 +9,7 @@ add_library(VulkanHppModule)
 target_sources(VulkanHppModule PUBLIC
   FILE_SET CXX_MODULES
   BASE_DIRS ${Vulkan_INCLUDE_DIR}
-  FILES 
+  FILES
 	${Vulkan_INCLUDE_DIR}/vulkan/vulkan.cppm
 	${Vulkan_INCLUDE_DIR}/vulkan/vulkan_video.cppm
 )

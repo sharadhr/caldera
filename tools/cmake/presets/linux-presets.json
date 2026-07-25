@@ -13,7 +13,7 @@
         "rhs": "Linux"
       },
       "cacheVariables": {
-        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;ASan"
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;ASan;TSan"
       },
       "inherits": [
         "project-config"

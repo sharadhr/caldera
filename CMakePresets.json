@@ -2,7 +2,6 @@
   "version": 9,
   "include": [
     "${sourceDir}/tools/cmake/presets/linux-presets.json",
-    "${sourceDir}/tools/cmake/presets/macos-presets.json",
     "${sourceDir}/tools/cmake/presets/windows-presets.json"
   ],
   "buildPresets": [
@@ -73,11 +72,6 @@
     },
     {
       "name": "windows-clang-msvc-asan",
-      "configuration": "ASan",
-      "configurePreset": "windows-clang-msvc"
-    },
-    {
-      "name": "windows-clang-msvc-tsan",
       "configuration": "ASan",
       "configurePreset": "windows-clang-msvc"
     }

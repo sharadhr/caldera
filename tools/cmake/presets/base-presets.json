@@ -59,7 +59,7 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": true,
         "CMAKE_EXPORT_SARIF": true,
         "CMAKE_COLOR_DIAGNOSTICS": true,
-		"CMAKE_PROJECT_cxxinit_INCLUDE": "${sourceDir}/tools/cmake/modules/project-warnings.cmake",
+		"CMAKE_PROJECT_caldera_INCLUDE": "${sourceDir}/tools/cmake/modules/project-warnings.cmake",
         "CMAKE_CXX_STANDARD": "26",
         "CMAKE_CXX_STANDARD_REQUIRED": true,
         "CMAKE_CXX_EXTENSIONS": false,

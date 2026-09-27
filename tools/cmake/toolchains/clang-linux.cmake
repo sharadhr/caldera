@@ -29,60 +29,6 @@ set(CMAKE_RC_COMPILER
 set(CMAKE_LINKER_TYPE LLD)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Some useful flags
-if (NOT DEFINED _VCPKG_ROOT_DIR)
-	string(JOIN " " WARNING_FLAGS
-		"-U_FORTIFY_SOURCE"
-		"-D_FORTIFY_SOURCE=3"
-		"-Wall"
-		"-Walloca"
-		"-Wcast-align"
-		"-Wcast-qual"
-		# "-Wcomma-subscript"
-		"-Wconversion"
-		"-Wctor-dtor-privacy"
-		"-Wdeprecated-copy-dtor"
-		"-Wdouble-promotion"
-		# "-Wduplicated-branches"
-		# "-Wduplicated-cond"
-		"-Wenum-conversion"
-		"-Wextra"
-		"-Wextra-semi"
-		"-Wfloat-equal"
-		# "-Wformat-overflow=2"
-		"-Wformat-overflow"
-		# "-Wformat-signedness"
-		"-Wformat=2"
-		"-Wframe-larger-than=1048576"
-		"-Wimplicit-fallthrough"
-		# "-Wjump-misses-init"
-		# "-Wlogical-op"
-		"-Wmismatched-tags"
-		"-Wmissing-braces"
-		"-Wmultichar"
-		"-Wno-unused-parameter"
-		# "-Wnoexcept"
-		"-Wnon-virtual-dtor"
-		"-Wnull-dereference"
-		"-Wold-style-cast"
-		"-Woverloaded-virtual"
-		"-Wpedantic"
-		"-Wpointer-arith"
-		"-Wrange-loop-construct"
-		# "-Wrestrict"
-		"-Wshadow"
-		"-Wsign-conversion"
-		# "-Wstrict-null-sentinel"
-		# "-Wsuggest-attribute=format"
-		# "-Wsuggest-attribute=malloc"
-		"-Wundef"
-		"-Wuninitialized"
-		"-Wunused"
-		"-Wvla"
-		# "-Wvolatile"
-		"-Wwrite-strings"
-	)
-endif ()
 string(JOIN " " LINKER_FLAGS
 	"-stdlib=libc++"
 	"-static-libstdc++"
@@ -119,9 +65,6 @@ foreach (CONFIG "ASAN" "TSAN")
 	set(CMAKE_MAP_IMPORTED_CONFIG_${CONFIG} "Release" "RelWithDebInfo" "MinSizeRel" "")
 endforeach ()
 
-# Set the default flags
-set(CMAKE_C_FLAGS_INIT "${WARNING_FLAGS}")
-set(CMAKE_CXX_FLAGS_INIT "${WARNING_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST")
 set(CMAKE_EXE_LINKER_FLAGS_INIT ${LINKER_FLAGS})

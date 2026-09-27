@@ -17,50 +17,6 @@ set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "ProgramDatabase")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug,RTC>:Debug>DLL")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Some useful flags
-if (NOT DEFINED _VCPKG_ROOT_DIR)
-	string(JOIN " " WARNING_FLAGS
-		"/sdl"
-		"/guard:cf"
-		"/utf-8"
-		"/diagnostics:caret"
-		"/w14165"
-		"/w44242"
-		"/w44254"
-		"/w44263"
-		"/w34265"
-		"/w34287"
-		"/w44296"
-		"/w44365"
-		"/w44388"
-		"/w44464"
-		"/w14545"
-		"/w14546"
-		"/w14547"
-		"/w14549"
-		"/w14555"
-		"/w34619"
-		"/w34640"
-		"/w24826"
-		"/w14905"
-		"/w14906"
-		"/w14928"
-		"/w45038"
-		"/wd4324"
-		"/W4"
-		"/permissive-"
-		"/volatile:iso"
-		"/Zc:inline"
-		"/Zc:preprocessor"
-		"/Zc:enumTypes"
-		"/Zc:lambda"
-		"/Zc:__cplusplus"
-		"/Zc:externConstexpr"
-		"/Zc:throwingNew"
-		"/Zf"
-		"/EHsc"
-	)
-endif ()
 string(JOIN " " LINKER_FLAGS
 	"/DEBUG"
 	"/OPT:REF"
@@ -93,9 +49,6 @@ foreach (CONFIG "ASAN" "RTC")
 	set(CMAKE_MAP_IMPORTED_CONFIG_${CONFIG} "Release" "RelWithDebInfo" "MinSizeRel" "")
 endforeach ()
 
-# Set the default flags for normal build types
-set(CMAKE_C_FLAGS_INIT ${WARNING_FLAGS})
-set(CMAKE_CXX_FLAGS_INIT ${WARNING_FLAGS})
 set(CMAKE_EXE_LINKER_FLAGS_INIT ${LINKER_FLAGS})
 set(CMAKE_SHARED_LINKER_FLAGS_INIT ${LINKER_FLAGS})
 

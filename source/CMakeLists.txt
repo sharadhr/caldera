@@ -1,13 +1,23 @@
 add_library(caldera)
 
-target_link_libraries(caldera PRIVATE
-	efsw::efsw
-	QuillStatic
-	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
-	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
-	vk-bootstrap::vk-bootstrap
-	VulkanHppModule
-	VulkanMemoryAllocatorHppModule
+target_sources(caldera
+	PUBLIC FILE_SET CXX_MODULES
+	FILES
+		caldera/caldera.cppm
+		caldera/Engine.cppm
 )
 
-add_executable(engine main.cpp)
+target_link_libraries(caldera
+	PRIVATE
+		efsw::efsw
+		vk-bootstrap::vk-bootstrap
+		VulkanHppModule
+		VulkanMemoryAllocatorHppModule
+)
+
+add_executable(engine)
+target_sources(engine
+	PRIVATE
+		main.cpp
+)
+target_link_libraries(engine PRIVATE caldera SDL3::SDL3-static SDL3::Headers)

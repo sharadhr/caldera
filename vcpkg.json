@@ -8,7 +8,7 @@
     "glaze",
     "imgui",
     {
-      "name": "sdl2",
+      "name": "sdl3",
       "features": [
         "vulkan"
       ]

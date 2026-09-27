@@ -25,7 +25,6 @@
       "name": "cmake-experimental",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD": "f35a9ac6-8463-4d38-8eec-5d6008153e7d",
         "CMAKE_EXPERIMENTAL_EXPORT_BUILD_DATABASE": "70ef007e-b743-492d-9407-e35eeac03a40",
         "CMAKE_EXPERIMENTAL_EXPORT_PACKAGE_DEPENDENCIES": "1942b4fa-b2c5-4546-9385-83f254070067",
         "CMAKE_EXPERIMENTAL_FIND_CPS_PACKAGES": "e82e467b-f997-4464-8ace-b00808fff261",
@@ -62,7 +61,6 @@
         "CMAKE_EXPORT_SARIF": true,
         "CMAKE_COLOR_DIAGNOSTICS": true,
 		"CMAKE_PROJECT_cxxinit_INCLUDE": "${sourceDir}/tools/cmake/modules/project-warnings.cmake",
-        "CMAKE_CXX_MODULE_STD": true,
         "CMAKE_CXX_STANDARD": "26",
         "CMAKE_CXX_STANDARD_REQUIRED": true,
         "CMAKE_CXX_EXTENSIONS": false,

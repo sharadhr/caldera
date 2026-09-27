@@ -29,7 +29,7 @@
       "name": "windows-cl-release",
       "configuration": "Release",
       "configurePreset": "windows-cl"
-    },
+    },  
     {
       "name": "windows-cl-asan",
       "configuration": "ASan",

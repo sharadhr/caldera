@@ -1,11 +1,10 @@
 vcpkg_from_github(
   OUT_SOURCE_PATH SOURCE_PATH
-  REPO GrinlexGH/VulkanMemoryAllocator-Hpp
-  REF 4a711f97d1d122fe5254ae0a686d17335e595b5c
-  SHA512 3deaebbb0d538dbbffbb4162541e20f8230ef640695a557482259337a34e68407594cb4c056bde4997e84a6087bdab7f624a68198ea59475375ce9d328b92f47
+  REPO YaaZ/VulkanMemoryAllocator-Hpp
+  REF "v${VERSION}+2"
+  SHA512 141a2a8ef4b1bb7975d1690595ed4b3655a321cae9c44024dd0460820bf7a0bff40572b62437d2b5f2b9ba0778cecc4b941de82b091a0043422f14c5d0529b04
   HEAD_REF master
   PATCHES
-    001-std-expected-converters.diff
 )
 
 vcpkg_cmake_configure(

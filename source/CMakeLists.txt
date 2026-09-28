@@ -1,8 +1,7 @@
-add_library(caldera)
+add_library(caldera INTERFACE)
 
-target_link_libraries(caldera PRIVATE
+target_link_libraries(caldera INTERFACE
 	efsw::efsw
-	QuillStatic
 	SDL3::SDL3-static
 	SDL3::Headers
 	vk-bootstrap::vk-bootstrap
@@ -11,3 +10,4 @@ target_link_libraries(caldera PRIVATE
 )
 
 add_executable(engine main.cpp)
+target_link_libraries(engine PRIVATE caldera)

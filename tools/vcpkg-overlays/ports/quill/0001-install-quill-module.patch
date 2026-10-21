@@ -1,0 +1,22 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b76f28e..c30e720 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -494,9 +494,16 @@ if (QUILL_MASTER_PROJECT OR QUILL_ENABLE_INSTALL)
+             ARCHIVE DESTINATION ${QUILL_LIB_DIR}
+             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+ 
++    if (QUILL_BUILD_MODULE)
++        install(TARGETS quill_module EXPORT ${targets_export_name}
++                FILE_SET CXX_MODULES DESTINATION ${QUILL_INC_DIR}/quill/modules
++                CXX_MODULES_BMI DESTINATION ${QUILL_LIB_DIR}/quill/bmi)
++    endif ()
++
+     # Export the library
+     install(EXPORT ${targets_export_name} DESTINATION ${QUILL_CMAKE_DIR}
+-            NAMESPACE quill::)
++            NAMESPACE quill::
++            CXX_MODULES_DIRECTORY quill/cxx-modules)
+ 
+     # ---- Packaging ---- #
+     set(CPACK_GENERATOR ZIP)

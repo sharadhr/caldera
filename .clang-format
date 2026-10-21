@@ -46,7 +46,10 @@ BreakBeforeBinaryOperators: NonAssignment
 ContinuationIndentWidth: 2
 BreakConstructorInitializers: AfterColon
 ConstructorInitializerIndentWidth: 2
-SortIncludes: CaseInsensitive
+SortIncludes:
+  IgnoreCase: true
+  IgnoreExtension: true
+  Natural: true
 AllowAllArgumentsOnNextLine: false
 Cpp11BracedListStyle: true
 InsertNewlineAtEOF: true

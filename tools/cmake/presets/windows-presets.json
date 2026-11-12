@@ -24,6 +24,10 @@
       "inherits": [
         "windows-base"
       ],
+      "toolset": {
+        "value": "version=preview",
+        "strategy": "external"
+      },
       "cacheVariables": {
         "CMAKE_CXX_STANDARD": "23",
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/cl-msvc.cmake",
@@ -55,6 +59,10 @@
       "inherits": [
         "windows-clang-base"
       ],
+      "toolset": {
+        "value": "version=preview",
+        "strategy": "external"
+      },
       "cacheVariables": {
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/cmake/toolchains/clang-msvc.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-windows-clang-static-md"

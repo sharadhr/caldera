@@ -1,0 +1,18 @@
+diff --git a/src/quill.cc b/src/quill.cc
+index 550987d..68dbb6f 100644
+--- a/src/quill.cc
++++ b/src/quill.cc
+@@ -100,7 +100,13 @@ module;
+     #define NOMINMAX
+   #endif
+   #include <io.h>
++  #include <share.h>
+   #include <windows.h>
++  // MSVC STL internal header used by quill/core/ChronoTimeUtils.h. It must be seen here:
++  // including it after `import std` redeclares STL entities in the module purview.
++  #if defined(_MSVC_STL_VERSION)
++    #include <xtimec.h>
++  #endif
+ #endif
+ #if !defined(__INTEL_COMPILER)
+   #if QUILL_HAS_INCLUDE(<x86gprintrin.h>)

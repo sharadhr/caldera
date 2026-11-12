@@ -6,6 +6,7 @@ vcpkg_from_github(
     HEAD_REF master
     PATCHES
         0001-install-quill-module.patch
+        0002-msvc-import-std-global-module-fragment.patch
 )
 
 if(VCPKG_TARGET_IS_ANDROID)

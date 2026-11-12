@@ -1,0 +1,2 @@
+# vcpkg port patches must match the upstream sources byte for byte, including CRLF in their hunks.
+*.patch -text

@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 13,
   "cmakeMinimumRequired": {
     "major": 4,
     "minor": 5,
@@ -10,14 +10,14 @@
       "name": "cmake",
       "hidden": true,
       "warnings": {
-        "dev": false,
+        "author": true,
         "deprecated": true,
         "uninitialized": false,
         "unusedCli": true,
         "systemVars": false
       },
       "errors": {
-        "dev": false,
+        "author": false,
         "deprecated": false
       }
     },

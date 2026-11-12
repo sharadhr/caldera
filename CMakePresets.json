@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 13,
   "include": [
     "${sourceDir}/tools/cmake/presets/linux-presets.json",
     "${sourceDir}/tools/cmake/presets/windows-presets.json"

@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index b76f28e..c30e720 100644
+index 7c10ef5d..74229c88 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -494,9 +494,16 @@ if (QUILL_MASTER_PROJECT OR QUILL_ENABLE_INSTALL)
+@@ -490,9 +490,16 @@ if (QUILL_MASTER_PROJECT OR QUILL_ENABLE_INSTALL)
              ARCHIVE DESTINATION ${QUILL_LIB_DIR}
              RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
  

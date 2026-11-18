@@ -1,0 +1,15 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 74229c88..d2a9fcd7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -387,10 +387,6 @@ if (QUILL_BUILD_MODULE)
+         message(FATAL_ERROR "QUILL_BUILD_MODULE requires CMake 3.28 or newer.")
+     endif ()
+ 
+-    if (CMAKE_CXX_STANDARD LESS 20)
+-        message(FATAL_ERROR "QUILL_BUILD_MODULE requires CMAKE_CXX_STANDARD to be 20 or higher.")
+-    endif ()
+-
+     add_library(quill_module)
+     add_library(quill::quill_module ALIAS quill_module)
+ 

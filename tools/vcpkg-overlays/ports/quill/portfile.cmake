@@ -1,12 +1,14 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO odygrd/quill
-    REF "v${VERSION}"
-    SHA512 d7b37deae0620a4b83e0b4b1eb8bdc76d32950c63643f5f18fe0d341cba0856756061a088ddd2ab87886c0497d35732165c3013cc69815f5058cf2584c9bc624
+    # Unreleased master commit with the fix for odygrd/quill#1012 (import std on MSVC).
+    # Return to "v${VERSION}" once v14.0.0 is released.
+    REF 8ecfde27bddbbd410103df97e8b098bf1a1bffb6
+    SHA512 71e488cb8fd57453c6c379d28669d4e4f7b3d2d061698500f7058dee9ced9029362bfaf942d0c0c6df203cb7cef977438203afb0a50191f93341fe84e3fdac4e
     HEAD_REF master
     PATCHES
         0001-install-quill-module.patch
-        0002-msvc-import-std-global-module-fragment.patch
+        0002-module-without-cxx-standard.patch
 )
 
 if(VCPKG_TARGET_IS_ANDROID)
@@ -18,7 +20,6 @@ OPTIONS
     ${ADDITIONAL_OPTIONS}
     -DQUILL_BUILD_MODULE=ON
     -DQUILL_IMPORT_STD=ON
-    -DCMAKE_CXX_STANDARD=26
 )
 
 vcpkg_cmake_install()
